@@ -1,10 +1,12 @@
-name: Update Games Playlists
+name: Apply Games Playlist Links
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 permissions:
   contents: write
 jobs:
   update:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -12,33 +14,41 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          s=s.replace('<a href="#top">Home</a><a href="#videos">Videos</a>', '<a href="#top">Home</a><a href="#games">Games</a><a href="#videos">Videos</a>', 1)
-          start=s.index('<div class="games">')
-          end=s.index('</div></div></section>', start)
-          new='''<div class="games"><a class="card" href="https://youtube.com/playlist?list=PLSjzzcfb3AwA" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="WUTHERING WAVES LORE — PODCAST" draggable="false"></div><div class="game-name">WUTHERING WAVES LORE — PODCAST</div></a><a class="card" href="https://youtube.com/playlist?list=PL3gT64ipuP2Q4oL7gny6-uQTKGX6vrA9h" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="GENSHIN IMPACT" draggable="false"></div><div class="game-name">GENSHIN IMPACT</div></a><a class="card" href="https://youtube.com/playlist?list=PL3gT64ipuP2TJ-7CqMaOkUabLrfCJ112_" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="ZENLESS ZONE ZERO" draggable="false"></div><div class="game-name">ZENLESS ZONE ZERO</div></a><a class="card" href="https://youtube.com/playlist?list=PLBU_IiYBDS9c" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="WUTHERING WAVES" draggable="false"></div><div class="game-name">WUTHERING WAVES</div></a><a class="card" href="https://youtube.com/playlist?list=PL3gT64ipuP2S-_KTvJ0oJDdQIDpuDGAwq" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="REVERSE: 1999" draggable="false"></div><div class="game-name">REVERSE: 1999</div></a><a class="card" href="https://youtube.com/playlist?list=PLRiUfBOoP20M" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="NTE" draggable="false"></div><div class="game-name">NTE</div></a><a class="card" href="https://youtube.com/playlist?list=PLHqebmkOvcn4" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="CHAOS ZERO NIGHTMARE" draggable="false"></div><div class="game-name">CHAOS ZERO NIGHTMARE</div></a><a class="card" href="https://youtube.com/playlist?list=PLNf6kMa6gAa8" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="ARKNIGHTS: ENDFIELD" draggable="false"></div><div class="game-name">ARKNIGHTS: ENDFIELD</div></a>'''
-          s=s[:start]+new+s[end:]
-          marker='</style></head>'
-          css='''.games{display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding:2px 2px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#7653ad transparent}.games::-webkit-scrollbar{height:7px}.games::-webkit-scrollbar-track{background:transparent}.games::-webkit-scrollbar-thumb{background:linear-gradient(90deg,#ef83ff,#b896ff,#7edcff);border-radius:99px}.games .card{flex:0 0 calc((100% - 50px)/6);min-width:180px;scroll-snap-align:start}.games .card .image-slot{aspect-ratio:16/10}.games .game-name{font-weight:500}@media(max-width:900px){.games .card{flex-basis:calc((100% - 20px)/3);min-width:170px}}@media(max-width:600px){.games .card{flex-basis:78%;min-width:0}}'''
-          s=s.replace(marker,css+marker,1)
-          p.write_text(s,encoding='utf-8')
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          nav_old = '<a href="#top">Home</a><a href="#videos">Videos</a>'
+          nav_new = '<a href="#top">Home</a><a href="#games">Games</a><a href="#videos">Videos</a>'
+          if nav_old in s and 'href="#games">Games</a>' not in s:
+              s = s.replace(nav_old, nav_new, 1)
+
+          start = s.index('<div class="games">')
+          end = s.index('</div></div></section>', start)
+          new_games = '''<div class="games">
+          <a class="card" href="https://youtube.com/playlist?list=PL3gT64ipuP2Q4oL7gny6-uQTKGX6vrA9h" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="GENSHIN IMPACT" draggable="false"></div><div class="game-name">GENSHIN IMPACT</div></a>
+          <a class="card" href="https://youtube.com/playlist?list=PL3gT64ipuP2TJ-7CqMaOkUabLrfCJ112_" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="ZENLESS ZONE ZERO" draggable="false"></div><div class="game-name">ZENLESS ZONE ZERO</div></a>
+          <a class="card" href="https://youtube.com/playlist?list=PLBU_IiYBDS9c" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="WUTHERING WAVES" draggable="false"></div><div class="game-name">WUTHERING WAVES</div></a>
+          <a class="card" href="#"><div class="image-slot"><img src="" alt="REVERSE: 1999" draggable="false"></div><div class="game-name">REVERSE: 1999</div></a>
+          <a class="card" href="#"><div class="image-slot"><img src="" alt="NTE" draggable="false"></div><div class="game-name">NTE</div></a>
+          <a class="card" href="#"><div class="image-slot"><img src="" alt="CHAOS ZERO NIGHTMARE" draggable="false"></div><div class="game-name">CHAOS ZERO NIGHTMARE</div></a>
+          <a class="card" href="#"><div class="image-slot"><img src="" alt="AND MORE TO COME…" draggable="false"></div><div class="game-name">AND MORE TO COME…</div></a>
+          </div>'''
+          s = s[:start] + new_games + s[end:]
+
+          marker = '</style></head>'
+          css = '''
+          .games{display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding:2px 2px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#7653ad transparent}.games::-webkit-scrollbar{height:7px}.games::-webkit-scrollbar-track{background:transparent}.games::-webkit-scrollbar-thumb{background:linear-gradient(90deg,#ef83ff,#b896ff,#7edcff);border-radius:99px}.games .card{flex:0 0 calc((100% - 50px)/6);min-width:180px;scroll-snap-align:start}.games .card .image-slot{aspect-ratio:16/10}.games .game-name{font-weight:500}@media(max-width:900px){.games .card{flex-basis:calc((100% - 20px)/3);min-width:170px}}@media(max-width:600px){.games .card{flex-basis:78%;min-width:0}}'''
+          if '.games{display:flex;' not in s:
+              s = s.replace(marker, css + marker, 1)
+
+          p.write_text(s, encoding='utf-8')
           PY
-      - name: Commit changes
+      - name: Commit website changes and remove temporary workflow
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git diff --cached --quiet && exit 0
-          git commit -m "Link Games section to YouTube playlists"
-          git push
-      - name: Remove temporary workflow
-        if: always()
-        run: |
           rm -f .github/workflows/update-games-playlists.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/update-games-playlists.yml
+          git add index.html .github/workflows/update-games-playlists.yml
           git diff --cached --quiet && exit 0
-          git commit -m "Remove temporary playlist update workflow"
+          git commit -m "Add Games YouTube playlists and horizontal carousel"
           git push
