@@ -1,0 +1,38 @@
+name: Fix YouTube hover icon
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-youtube-hover-icon.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Keep YouTube icon white on hover
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '.btn.primary:hover .btn-icon{color:#160b22}'
+          new = '.btn.primary:hover .btn-icon{color:#fff}'
+          if old not in s:
+              raise SystemExit('Expected YouTube hover icon rule was not found.')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Commit fix and remove this workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git rm .github/workflows/fix-youtube-hover-icon.yml
+          git commit -m 'Keep YouTube icon white on hover'
+          git push
