@@ -1,0 +1,33 @@
+name: Finalize Games Playlists
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix Games section
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          start = s.index('<div class="games">')
+          end = s.index('</div></div></div></section>', start) + len('</div>')
+          new = '''<div class="games"><a class="card" href="https://youtube.com/playlist?list=PLSjzzcfb3AwA" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="WUTHERING WAVES LORE — PODCAST" draggable="false"></div><div class="game-name">WUTHERING WAVES LORE — PODCAST</div></a><a class="card" href="https://youtube.com/playlist?list=PL3gT64ipuP2Q4oL7gny6-uQTKGX6vrA9h" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="GENSHIN IMPACT" draggable="false"></div><div class="game-name">GENSHIN IMPACT</div></a><a class="card" href="https://youtube.com/playlist?list=PL3gT64ipuP2TJ-7CqMaOkUabLrfCJ112_" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="ZENLESS ZONE ZERO (ZZZ)" draggable="false"></div><div class="game-name">ZENLESS ZONE ZERO (ZZZ)</div></a><a class="card" href="https://youtube.com/playlist?list=PLBU_IiYBDS9c" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="WUTHERING WAVES" draggable="false"></div><div class="game-name">WUTHERING WAVES</div></a><a class="card" href="https://youtube.com/playlist?list=PL3gT64ipuP2S-_KTvJ0oJDdQIDpuDGAwq" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="REVERSE: 1999" draggable="false"></div><div class="game-name">REVERSE: 1999</div></a><a class="card" href="https://youtube.com/playlist?list=PLRiUfBOoP20M" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="NTE" draggable="false"></div><div class="game-name">NTE</div></a><a class="card" href="https://youtube.com/playlist?list=PLHqebmkOvcn4" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="CHAOS ZERO NIGHTMARE" draggable="false"></div><div class="game-name">CHAOS ZERO NIGHTMARE</div></a><a class="card" href="https://youtube.com/playlist?list=PLNf6kMa6gAa8" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="ARKNIGHTS: ENDFIELD" draggable="false"></div><div class="game-name">ARKNIGHTS: ENDFIELD</div></a><a class="card" href="https://youtube.com/playlist?list=PLH_i2bw4m1HI" target="_blank" rel="noopener"><div class="image-slot"><img src="" alt="HONKAI STAR RAIL" draggable="false"></div><div class="game-name">HONKAI STAR RAIL</div></a><a class="card" href="#"><div class="image-slot"><img src="" alt="AND MORE TO COME…" draggable="false"></div><div class="game-name">AND MORE TO COME…</div></a></div>'''
+          s = s[:start] + new + s[end:]
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/fix-games-final.yml
+          git add index.html .github/workflows/fix-games-final.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix Games playlist order and links"
+          git push
