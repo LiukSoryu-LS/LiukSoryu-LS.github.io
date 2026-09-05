@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths-ignore:
       - videos.json
+      - playlist-thumbnails.json
+      - .github/workflows/update-youtube.yml
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
@@ -24,8 +26,7 @@ jobs:
           python - <<'PY'
           import json, re, urllib.request, xml.etree.ElementTree as ET
           from pathlib import Path
-          CHANNEL = 'https://www.youtube.com/@liuksoryu/videos'
-          req = urllib.request.Request(CHANNEL, headers={'User-Agent':'Mozilla/5.0'})
+          req = urllib.request.Request('https://www.youtube.com/@liuksoryu/videos', headers={'User-Agent':'Mozilla/5.0'})
           html = urllib.request.urlopen(req, timeout=30).read().decode('utf-8', 'ignore')
           channel_id = None
           for pattern in [r'"channelId":"(UC[^"]+)"', r'"externalId":"(UC[^"]+)"', r'channelId=(UC[A-Za-z0-9_-]+)']:
@@ -34,81 +35,87 @@ jobs:
                   channel_id = m.group(1)
                   break
           if not channel_id:
-              raise SystemExit('Could not resolve the LIUKSORYU YouTube channel ID.')
-          feed_url = f'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}'
-          xml = urllib.request.urlopen(feed_url, timeout=30).read()
+              raise SystemExit('Could not resolve LIUKSORYU channel ID')
+          xml = urllib.request.urlopen(f'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}', timeout=30).read()
           root = ET.fromstring(xml)
           ns = {'yt':'http://www.youtube.com/xml/schemas/2015', 'atom':'http://www.w3.org/2005/Atom'}
-          videos = []
-          for entry in root.findall('atom:entry', ns)[:5]:
-              vid = entry.findtext('yt:videoId', default='', namespaces=ns)
-              title = entry.findtext('atom:title', default='Untitled', namespaces=ns)
-              published = entry.findtext('atom:published', default='', namespaces=ns)
-              link = entry.find('atom:link', ns)
-              url = link.attrib.get('href') if link is not None else f'https://www.youtube.com/watch?v={vid}'
-              thumb = f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg'
-              date = published[:10] if published else ''
-              videos.append({'title': title, 'url': url, 'thumbnail': thumb, 'meta': f'YouTube • {date}' if date else 'YouTube'})
-          Path('videos.json').write_text(json.dumps(videos, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          print(f'Updated {len(videos)} videos from {channel_id}')
+          videos=[]
+          for entry in root.findall('atom:entry',ns)[:5]:
+              vid=entry.findtext('yt:videoId',default='',namespaces=ns)
+              title=entry.findtext('atom:title',default='Untitled',namespaces=ns)
+              published=entry.findtext('atom:published',default='',namespaces=ns)
+              link=entry.find('atom:link',ns)
+              url=link.attrib.get('href') if link is not None else f'https://www.youtube.com/watch?v={vid}'
+              videos.append({'title':title,'url':url,'thumbnail':f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg','meta':f'YouTube • {published[:10]}' if published else 'YouTube'})
+          Path('videos.json').write_text(json.dumps(videos,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(f'Updated {len(videos)} latest channel videos')
           PY
 
       - name: Connect latest videos to homepage
         run: |
           python - <<'PY'
           from pathlib import Path
-          p = Path('index.html')
-          s = p.read_text(encoding='utf-8')
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
           if 'data-video-card' not in s:
-              start = s.index('<div class="videos">')
-              end = s.index('</div></div></section>', start)
-              block = '<div class="videos">' + ''.join('<a class="card video" data-video-card href="#" target="_blank" rel="noopener"><div class="image-slot"><span class="play">▶</span></div><div class="video-info"><div class="video-title">Loading latest video…</div><div class="video-meta">YouTube</div></div></a>' for _ in range(5))
-              s = s[:start] + block + s[end:]
+              raise SystemExit('Expected video cards are missing from index.html')
           if 'loadLatestVideos' not in s:
-              needle = "<script>document.addEventListener('dragstart',e=>e.preventDefault());"
-              script = '''<script>async function loadLatestVideos(){try{const r=await fetch('videos.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('videos.json unavailable');const videos=await r.json();document.querySelectorAll('[data-video-card]').forEach((card,i)=>{const v=videos[i];if(!v){card.style.display='none';return;}card.style.display='';card.href=v.url;card.querySelector('.video-title').textContent=v.title;card.querySelector('.video-meta').textContent=v.meta||'YouTube';card.querySelector('.image-slot').style.backgroundImage=`url("${v.thumbnail}")`;card.querySelector('.image-slot').style.backgroundSize='cover';card.querySelector('.image-slot').style.backgroundPosition='center';card.querySelector('.image-slot').style.backgroundRepeat='no-repeat';});}catch(e){console.warn('Latest videos could not be loaded:',e)}}loadLatestVideos();document.addEventListener('dragstart',e=>e.preventDefault());'''
-              s = s.replace(needle, script)
-          p.write_text(s, encoding='utf-8')
+              needle="<script>document.addEventListener('dragstart',e=>e.preventDefault());"
+              script='''<script>async function loadLatestVideos(){try{const r=await fetch('videos.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('videos.json unavailable');const videos=await r.json();document.querySelectorAll('[data-video-card]').forEach((card,i)=>{const v=videos[i];if(!v){card.style.display='none';return;}card.style.display='';card.href=v.url;card.querySelector('.video-title').textContent=v.title;card.querySelector('.video-meta').textContent=v.meta||'YouTube';const slot=card.querySelector('.image-slot');slot.style.backgroundImage=`url("${v.thumbnail}")`;slot.style.backgroundSize='cover';slot.style.backgroundPosition='center';slot.style.backgroundRepeat='no-repeat';});}catch(e){console.warn('Latest videos could not be loaded:',e)}}loadLatestVideos();document.addEventListener('dragstart',e=>e.preventDefault());'''
+              s=s.replace(needle,script)
+              p.write_text(s,encoding='utf-8')
           PY
 
       - name: Update Games playlist thumbnails
         run: |
           python - <<'PY'
-          import re, urllib.request, html as htmlmod
+          import html, json, re, urllib.request
           from pathlib import Path
-          playlists = [
-              ('Wuthering Waves Lore — Podcast', 'https://youtube.com/playlist?list=PLSjzzcfb3AwA'),
-              ('Genshin Impact', 'https://youtube.com/playlist?list=PL3gT64ipuP2Q4oL7gny6-uQTKGX6vrA9h'),
-              ('Zenless Zone Zero (ZZZ)', 'https://youtube.com/playlist?list=PL3gT64ipuP2TJ-7CqMaOkUabLrfCJ112_'),
-              ('Wuthering Waves', 'https://youtube.com/playlist?list=PLBU_IiYBDS9c'),
-              ('Reverse: 1999', 'https://youtube.com/playlist?list=PL3gT64ipuP2S-_KTvJ0oJDdQIDpuDGAwq'),
-              ('NTE', 'https://youtube.com/playlist?list=PLRiUfBOoP20M'),
-              ('Chaos Zero Nightmare', 'https://youtube.com/playlist?list=PLHqebmkOvcn4'),
-              ('Arknights: Endfield', 'https://youtube.com/playlist?list=PLNf6kMa6gAa8'),
-              ('Honkai Star Rail', 'https://youtube.com/playlist?list=PLH_i2bw4m1HI'),
-              ('And More To Come…', '#'),
-          ]
-          def first_video_id(url):
-              if url == '#': return None
-              req = urllib.request.Request(url, headers={'User-Agent':'Mozilla/5.0'})
-              data = urllib.request.urlopen(req, timeout=30).read().decode('utf-8','ignore')
-              m = re.search(r'"playlistVideoRenderer"\s*:\s*\{.*?"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"', data, re.S)
-              if m: return m.group(1)
-              m = re.search(r'"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"', data)
-              return m.group(1) if m else None
-          cards=[]
+          playlists=[
+            ('Wuthering Waves Lore — Podcast','https://youtube.com/playlist?list=PLSjzzcfb3AwA'),
+            ('Genshin Impact','https://youtube.com/playlist?list=PL3gT64ipuP2Q4oL7gny6-uQTKGX6vrA9h'),
+            ('Zenless Zone Zero (ZZZ)','https://youtube.com/playlist?list=PL3gT64ipuP2TJ-7CqMaOkUabLrfCJ112_'),
+            ('Wuthering Waves','https://youtube.com/playlist?list=PLBU_IiYBDS9c'),
+            ('Reverse: 1999','https://youtube.com/playlist?list=PL3gT64ipuP2S-_KTvJ0oJDdQIDpuDGAwq'),
+            ('NTE','https://youtube.com/playlist?list=PLRiUfBOoP20M'),
+            ('Chaos Zero Nightmare','https://youtube.com/playlist?list=PLHqebmkOvcn4'),
+            ('Arknights: Endfield','https://youtube.com/playlist?list=PLNf6kMa6gAa8'),
+            ('Honkai Star Rail','https://youtube.com/playlist?list=PLH_i2bw4m1HI'),
+            ('And More To Come…','#')]
+          state_path=Path('playlist-thumbnails.json')
+          state=json.loads(state_path.read_text(encoding='utf-8')) if state_path.exists() else {}
+          new_state={}
+          def ids_for(url):
+              req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
+              data=urllib.request.urlopen(req,timeout=30).read().decode('utf-8','ignore')
+              ids=re.findall(r'"playlistVideoRenderer"\s*:\s*\{.*?"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"',data,re.S)
+              if not ids: ids=re.findall(r'"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"',data)
+              return list(dict.fromkeys(ids))
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
           for title,url in playlists:
-              vid=first_video_id(url)
-              if vid:
-                  image=f'<div class="image-slot has-image"><img src="https://i.ytimg.com/vi/{vid}/hqdefault.jpg" alt="{htmlmod.escape(title)}" loading="lazy"></div>'
-              else:
-                  image='<div class="image-slot"></div>'
-              cards.append(f'<a class="card game-card" href="{url}" target="_blank" rel="noopener">{image}<div class="game-name">{htmlmod.escape(title)}</div></a>')
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          start=s.index('<div class="games">')
-          end=s.index('</div></div></div></section>',start)+len('</div>')
-          s=s[:start]+'<div class="games">'+''.join(cards)+'</div>'+s[end:]
+              if url=='#': continue
+              ids=ids_for(url)
+              if not ids:
+                  print(f'No videos found for {title}; preserving current card')
+                  continue
+              old=state.get(url,{})
+              known=old.get('known_ids',[])
+              selected=old.get('selected_id')
+              fresh=[v for v in ids if v not in known]
+              if fresh: selected=fresh[-1]
+              elif selected not in ids: selected=ids[0]
+              new_state[url]={'known_ids':ids,'selected_id':selected,'title':title}
+              thumb=f'https://i.ytimg.com/vi/{selected}/hqdefault.jpg'
+              pattern=re.compile(r'<a class="card game-card" href="'+re.escape(url)+r'"[^>]*>.*?</a>',re.S)
+              m=pattern.search(s)
+              if not m:
+                  print(f'Card not found for {title}; preserving existing HTML')
+                  continue
+              card=m.group(0)
+              image=f'<div class="image-slot has-image"><img src="{thumb}" alt="{html.escape(title)}" loading="lazy"></div>'
+              card=re.sub(r'<div class="image-slot(?: has-image)?">.*?</div>',image,card,count=1,flags=re.S)
+              s=s[:m.start()]+card+s[m.end():]
+              print(f'{title}: {selected}')
+          state_path.write_text(json.dumps(new_state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           p.write_text(s,encoding='utf-8')
           PY
 
@@ -116,26 +123,17 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          p = Path('index.html')
-          s = p.read_text(encoding='utf-8')
-          marker = '/* LIUKSORYU mobile polish */'
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
+          marker='/* LIUKSORYU mobile polish */'
           if marker not in s:
-              css = '''\n/* LIUKSORYU mobile polish */\n@media(max-width:900px){.nav{gap:14px}.brand{min-width:0}.brand img{width:175px}.links{gap:12px}.socials{gap:6px}.social{width:40px;height:40px}.hero-content{width:min(760px,100%)}.videos{gap:12px}.guides,.community{gap:12px}}\n@media(max-width:600px){html{scroll-padding-top:70px}body{overflow-x:hidden;-webkit-text-size-adjust:100%}.shell{width:calc(100% - 24px)}.topbar,.nav{height:64px}.nav{gap:7px}.brand{flex:1;min-width:0}.brand img{width:108px;height:52px}.socials{gap:5px;flex:0 0 auto}.social{width:36px;height:36px;border-radius:11px}.social svg{width:18px;height:18px}.hero{min-height:590px;background-position:center center}.hero-content{width:100%;padding:54px 0 46px;margin-left:0;text-align:center}.eyebrow{font-size:10px;letter-spacing:.2em;margin-bottom:14px}.hero-logo{width:100%;height:auto;max-height:150px;object-position:center;margin:0 auto 16px}.hero p{max-width:100%;font-size:16px;line-height:1.52;margin:0 auto 22px}.actions{display:grid;grid-template-columns:1fr;gap:10px;width:100%}.btn{width:100%;min-height:52px;padding:14px 18px}.section{padding:26px 0 30px}.section-title{gap:10px}.section-title h2{font-size:20px;white-space:nowrap}.rule{max-width:70px}.section-sub{margin:7px 0 18px;font-size:9px;letter-spacing:.18em}.games{gap:10px;padding:2px 2px 10px;scroll-padding-left:2px;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none}.games::-webkit-scrollbar{display:none}.games .card{flex:0 0 78%;min-width:0;scroll-snap-align:start}.games .card .image-slot{aspect-ratio:16/10}.game-name{font-size:13px;line-height:1.3;min-height:46px;display:grid;place-items:center;padding:9px 8px}.videos{grid-template-columns:1fr;gap:12px}.video .image-slot{aspect-ratio:16/9}.video-info{padding:11px}.video-title{font-size:14px;line-height:1.35}.video-meta{font-size:10px}.guides,.community{grid-template-columns:1fr;gap:12px}.guide-overlay{padding:16px}.community-card{min-height:76px;padding:14px}.community-icon{width:44px;height:44px}.footer{padding:24px 0}.footer-inner,.footer-brand{align-items:flex-start;flex-direction:column}.footer-brand{gap:12px}.footer-brand img{width:130px;height:44px}.footer-links{gap:12px;line-height:1.8}.card,.btn,.social,.community-card{-webkit-tap-highlight-color:transparent}.games .card,.video,.guide,.community-card,.btn,.social{min-height:48px}}\n@media(max-width:360px){.brand img{width:96px}.social{width:34px;height:34px}.social svg{width:17px;height:17px}.hero-content{padding-top:46px}.hero-logo{max-height:132px}.hero p{font-size:15px}.section-title h2{font-size:18px}.rule{max-width:48px}.games .card{flex-basis:84%}}\n@media(any-pointer:coarse){.btn,.social,.community-card,.games .card,.video,.guide{min-height:48px}}\n'''
-              s = s.replace('</style>', css + '</style>', 1)
-              p.write_text(s, encoding='utf-8')
-              print('Mobile presentation CSS added.')
-          else:
-              print('Mobile presentation CSS already present.')
+              css='''\n/* LIUKSORYU mobile polish */\n@media(max-width:600px){html{scroll-padding-top:70px}body{overflow-x:hidden;-webkit-text-size-adjust:100%}.shell{width:calc(100% - 22px)}.topbar,.nav{height:64px}.nav{gap:7px}.brand{flex:1;min-width:0}.brand img{width:108px;height:52px}.links{display:none}.socials{gap:5px;flex:0 0 auto}.social{width:36px;height:36px;border-radius:11px}.social svg{width:18px;height:18px}.hero{min-height:590px;background-position:center center}.hero-content{width:100%;padding:54px 0 46px;margin-left:0;text-align:center}.eyebrow{font-size:10px;letter-spacing:.2em;margin-bottom:14px}.hero-logo{width:100%;height:auto;max-height:150px;object-position:center;margin:0 auto 16px}.hero p{max-width:100%;font-size:16px;line-height:1.52;margin:0 auto 22px}.actions{display:grid;grid-template-columns:1fr;gap:10px;width:100%}.btn{width:100%;min-height:52px;padding:14px 18px}.section{padding:26px 0 30px}.section-title{gap:10px}.section-title h2{font-size:20px;white-space:nowrap}.rule{max-width:70px}.section-sub{margin:7px 0 18px;font-size:9px;letter-spacing:.18em}.games{gap:10px;padding:2px 2px 10px;scroll-padding-left:2px;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none}.games::-webkit-scrollbar{display:none}.games .card{flex:0 0 78%;min-width:0;scroll-snap-align:start}.games .card .image-slot{aspect-ratio:16/10}.game-name{font-size:13px;line-height:1.3;min-height:46px;display:grid;place-items:center;padding:9px 8px}.videos{grid-template-columns:1fr;gap:12px}.video .image-slot{aspect-ratio:16/9}.video-info{padding:11px}.video-title{font-size:14px;line-height:1.35}.video-meta{font-size:10px}.guides,.community{grid-template-columns:1fr;gap:12px}.guide-overlay{padding:16px}.community-card{min-height:76px;padding:14px}.community-icon{width:44px;height:44px}.footer{padding:24px 0}.footer-inner,.footer-brand{align-items:flex-start;flex-direction:column}.footer-brand{gap:12px}.footer-brand img{width:130px;height:44px}.footer-links{gap:12px;line-height:1.8}.card,.btn,.social,.community-card{-webkit-tap-highlight-color:transparent}.games .card,.video,.guide,.community-card,.btn,.social{min-height:48px}}\n@media(max-width:360px){.brand img{width:96px}.social{width:34px;height:34px}.social svg{width:17px;height:17px}.hero-content{padding-top:46px}.hero-logo{max-height:132px}.hero p{font-size:15px}.section-title h2{font-size:18px}.rule{max-width:48px}.games .card{flex-basis:84%}}\n@media(any-pointer:coarse){.btn,.social,.community-card,.games .card,.video,.guide{min-height:48px}}\n'''
+              s=s.replace('</style>',css+'</style>',1)
+              p.write_text(s,encoding='utf-8')
           PY
 
       - name: Commit updates
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html videos.json
-          if git diff --cached --quiet; then
-            echo 'No changes to commit.'
-          else
-            git commit -m 'Update YouTube videos and responsive presentation [skip ci]'
-            git push
-          fi
+          git add index.html videos.json playlist-thumbnails.json
+          if git diff --cached --quiet; then echo 'No changes to commit.'; else git commit -m 'Update YouTube content and responsive presentation [skip ci]'; git push; fi
