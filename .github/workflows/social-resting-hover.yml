@@ -1,0 +1,47 @@
+name: Social CTA resting and hover states
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/social-resting-hover.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply CTA states
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          css = r'''
+          /* Social CTA interaction: neutral at rest, LIUKSORYU gradient on hover */
+          .btn.primary{background:linear-gradient(rgba(25,15,48,.78),rgba(25,15,48,.78)) padding-box,linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) border-box;color:#fff;box-shadow:none}
+          .btn.primary:hover{background:linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) padding-box,linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) border-box;color:#160b22;box-shadow:0 0 22px rgba(239,131,255,.42),0 0 46px rgba(126,220,255,.2),0 12px 35px rgba(214,124,255,.3)}
+          .btn.primary:hover .btn-icon{color:#160b22}
+          .community-card{border:2px solid transparent;background:linear-gradient(rgba(25,15,48,.78),rgba(25,15,48,.78)) padding-box,linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) border-box;color:#fff}
+          .community-card .community-icon{background:#24134c;color:#fff}
+          .community-card h3{color:#fff}.community-card p{color:#b8a8d0}.community-card .community-arrow{color:#d58bff}
+          .community-card:hover{border-color:transparent;background:linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) padding-box,linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) border-box;color:#160b22;box-shadow:0 0 22px rgba(239,131,255,.42),0 0 46px rgba(126,220,255,.2),0 12px 35px rgba(214,124,255,.3)}
+          .community-card:hover h3{color:#160b22}.community-card:hover p{color:#392653}.community-card:hover .community-arrow{color:#160b22}.community-card:hover .community-icon{color:#fff}
+          '''
+          if 'Social CTA interaction: neutral at rest' not in s:
+              s = s.replace('</style>', css + '</style>', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit and remove one-time workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git rm .github/workflows/social-resting-hover.yml
+          git commit -m 'Make social buttons gradient only on hover'
+          git push
