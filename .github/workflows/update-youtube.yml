@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - videos.json
+      - playlist-thumbnails.json
       - .github/workflows/update-youtube.yml
   schedule:
     - cron: '*/15 * * * *'
@@ -27,18 +28,17 @@ jobs:
           from pathlib import Path
           CHANNEL = 'https://www.youtube.com/@liuksoryu/videos'
           req = urllib.request.Request(CHANNEL, headers={'User-Agent':'Mozilla/5.0'})
-          html = urllib.request.urlopen(req, timeout=30).read().decode('utf-8', 'ignore')
+          page = urllib.request.urlopen(req, timeout=30).read().decode('utf-8', 'ignore')
           channel_id = None
           for pattern in [r'"channelId":"(UC[^"]+)"', r'"externalId":"(UC[^"]+)"', r'channelId=(UC[A-Za-z0-9_-]+)']:
-              m = re.search(pattern, html)
+              m = re.search(pattern, page)
               if m:
                   channel_id = m.group(1)
                   break
           if not channel_id:
               raise SystemExit('Could not resolve the LIUKSORYU YouTube channel ID.')
           feed_url = f'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}'
-          feed_req = urllib.request.Request(feed_url, headers={'User-Agent':'Mozilla/5.0'})
-          xml = urllib.request.urlopen(feed_url, timeout=30).read()
+          xml = urllib.request.urlopen(urllib.request.Request(feed_url, headers={'User-Agent':'Mozilla/5.0'}), timeout=30).read()
           root = ET.fromstring(xml)
           ns = {'yt':'http://www.youtube.com/xml/schemas/2015', 'atom':'http://www.w3.org/2005/Atom'}
           videos = []
@@ -52,7 +52,7 @@ jobs:
               date = published[:10] if published else ''
               videos.append({'title': title, 'url': url, 'thumbnail': thumb, 'meta': f'YouTube • {date}' if date else 'YouTube'})
           Path('videos.json').write_text(json.dumps(videos, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          print(f'Updated {len(videos)} videos from {channel_id}')
+          print(f'Updated {len(videos)} latest videos from {channel_id}')
           PY
 
       - name: Connect latest videos to homepage
@@ -76,7 +76,7 @@ jobs:
       - name: Update Games playlist thumbnails
         run: |
           python - <<'PY'
-          import re, urllib.request, html as htmlmod
+          import html as htmlmod, json, re, urllib.request
           from pathlib import Path
           playlists = [
               ('Wuthering Waves Lore — Podcast', 'https://youtube.com/playlist?list=PLSjzzcfb3AwA'),
@@ -90,21 +90,50 @@ jobs:
               ('Honkai Star Rail', 'https://youtube.com/playlist?list=PLH_i2bw4m1HI'),
               ('And More To Come…', '#'),
           ]
-          def first_video_id(url):
-              if url == '#': return None
-              req = urllib.request.Request(url, headers={'User-Agent':'Mozilla/5.0'})
-              data = urllib.request.urlopen(req, timeout=30).read().decode('utf-8','ignore')
-              m = re.search(r'"playlistVideoRenderer"\s*:\s*\{.*?"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"', data, re.S)
-              if m: return m.group(1)
-              m = re.search(r'"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"', data)
+          state_path=Path('playlist-thumbnails.json')
+          try: state=json.loads(state_path.read_text(encoding='utf-8'))
+          except Exception: state={}
+          old_html=Path('index.html').read_text(encoding='utf-8')
+          def current_image(title):
+              t=re.escape(htmlmod.escape(title))
+              m=re.search(r'<a class="card game-card"[^>]*>\s*<div class="image-slot has-image"><img src="([^"]+)"[^>]*alt="'+t+r'"', old_html)
               return m.group(1) if m else None
+          def playlist_video_ids(url):
+              req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
+              data=urllib.request.urlopen(req,timeout=30).read().decode('utf-8','ignore')
+              ids=re.findall(r'"playlistVideoRenderer"\s*:\s*\{.*?"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"',data,re.S)
+              if not ids:
+                  ids=re.findall(r'"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"',data)
+              out=[]
+              for vid in ids:
+                  if vid not in out: out.append(vid)
+              return out
           cards=[]
           for title,url in playlists:
-              vid=first_video_id(url)
-              if vid:
-                  image=f'<div class="image-slot has-image"><img src="https://i.ytimg.com/vi/{vid}/hqdefault.jpg" alt="{htmlmod.escape(title)}" loading="lazy"></div>'
-              else:
+              if url=='#':
                   image='<div class="image-slot"></div>'
+              else:
+                  key=url.split('list=')[-1]
+                  try:
+                      ids=playlist_video_ids(url)
+                      previous=state.get(key,{})
+                      known=set(previous.get('known',[]))
+                      new_ids=[vid for vid in ids if vid not in known]
+                      if new_ids:
+                          selected=new_ids[-1]
+                      else:
+                          selected=previous.get('selected') if previous.get('selected') in ids else (ids[0] if ids else None)
+                      if ids:
+                          state[key]={'selected':selected,'known':ids}
+                      if selected:
+                          image=f'<div class="image-slot has-image"><img src="https://i.ytimg.com/vi/{selected}/hqdefault.jpg" alt="{htmlmod.escape(title)}" loading="lazy"></div>'
+                      else:
+                          old=current_image(title)
+                          image=f'<div class="image-slot has-image"><img src="{old}" alt="{htmlmod.escape(title)}" loading="lazy"></div>' if old else '<div class="image-slot"></div>'
+                  except Exception as exc:
+                      print(f'Could not refresh {title}: {exc}')
+                      old=current_image(title)
+                      image=f'<div class="image-slot has-image"><img src="{old}" alt="{htmlmod.escape(title)}" loading="lazy"></div>' if old else '<div class="image-slot"></div>'
               cards.append(f'<a class="card game-card" href="{url}" target="_blank" rel="noopener">{image}<div class="game-name">{htmlmod.escape(title)}</div></a>')
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
@@ -112,13 +141,14 @@ jobs:
           end=s.index('</div></div></div></section>',start)+len('</div>')
           s=s[:start]+'<div class="games">'+''.join(cards)+'</div>'+s[end:]
           p.write_text(s,encoding='utf-8')
+          state_path.write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
 
       - name: Commit updates
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html videos.json
+          git add index.html videos.json playlist-thumbnails.json
           if git diff --cached --quiet; then
             echo 'No changes to commit.'
           else
