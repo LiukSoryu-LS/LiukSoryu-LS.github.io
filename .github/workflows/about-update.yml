@@ -14,19 +14,22 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          old='<section class="section" id="about"><div class="shell"><div class="section-title"><span class="rule"></span><h2>ABOUT</h2><span class="rule"></span></div><div class="section-sub">THE PERSON BEHIND LIUKSORYU</div></div></section>'
-          new='''<section class="section about-section" id="about"><div class="shell"><div class="about-wrap"><div class="about-portrait"><img src="Profile.jpg" alt="Liuk Soryu" loading="lazy"></div><div class="section-title"><span class="rule"></span><h2>✦ ABOUT <span>LIUK SORYU</span></h2><span class="rule"></span></div><div class="section-sub">THE PERSON BEHIND LIUKSORYU</div><div class="about-copy"><p>The games that shaped my childhood? <strong>Final Fantasy IX, The Legend of Dragoon, and Kingdom Hearts.</strong> 💜</p><p>I've been an RPG lover through and through ever since. I'm also a <strong>beginner MTG player</strong>, and I have a deep passion for games with intricate lore, fascinating characters, and worlds that feel like there's always something more to discover.</p><p>As for me?</p><p><strong>A little bit messy. A little bit fruity. A little bit shy.</strong></p><p>But always curious, always passionate, and probably overthinking some piece of game lore somewhere. 😂</p><p>I have a pretty strong sense of morality and I can't stand injustice or discrimination. I want this to be a space where people can enjoy games, talk about stories, share theories, and just be themselves without feeling judged.</p><p>And then there's the streaming...</p><p><strong>Stream mayhem is never the same twice.</strong></p><p>Sometimes there's a plan. Sometimes there absolutely isn't. Sometimes everything works perfectly.</p><p>And sometimes... well... <strong>we improvise.</strong> 😂</p><p>So be prepared for the unexpected.</p></div></div></div></section>'''
           css=''' .about-section{padding-top:36px;padding-bottom:44px}.about-wrap{max-width:980px;margin:0 auto;text-align:center}.about-portrait{width:190px;height:190px;margin:0 auto 24px;border-radius:50%;padding:4px;background:linear-gradient(135deg,#ef83ff,#b896ff,#7edcff);box-shadow:0 0 28px rgba(184,150,255,.24)}.about-portrait img{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;border:3px solid #0b0716}.about-section .section-title h2{font-size:30px}.about-section .section-title h2 span{background:linear-gradient(110deg,#ef83ff,#b896ff,#7edcff);-webkit-background-clip:text;background-clip:text;color:transparent}.about-copy{max-width:850px;margin:24px auto 0;color:#d9cde8;font-size:17px;line-height:1.72}.about-copy p{margin:0 0 19px}.about-copy strong{color:#f0c9ff}.about-copy p:nth-child(4) strong,.about-copy p:nth-child(8) strong{background:linear-gradient(110deg,#ef83ff,#b896ff,#7edcff);-webkit-background-clip:text;background-clip:text;color:transparent}@media(max-width:600px){.about-portrait{width:150px;height:150px}.about-section .section-title h2{font-size:20px}.about-copy{font-size:15px;line-height:1.65}} '''
-          if old not in s: raise SystemExit('about marker missing')
-          s=s.replace('</style>',css+'</style>',1).replace(old,new,1)
+          if '.about-section{' not in s:
+              s=s.replace('</style>',css+'</style>',1)
+          about='''<section class="section about-section" id="about"><div class="shell"><div class="about-wrap"><div class="about-portrait"><img src="Profile.jpg" alt="Liuk Soryu" loading="lazy"></div><div class="section-title"><span class="rule"></span><h2>✦ ABOUT <span>LIUK SORYU</span></h2><span class="rule"></span></div><div class="section-sub">THE PERSON BEHIND LIUKSORYU</div><div class="about-copy"><p>The games that shaped my childhood? <strong>Final Fantasy IX, The Legend of Dragoon, and Kingdom Hearts.</strong> 💜</p><p>I've been an RPG lover through and through ever since. I'm also a <strong>beginner MTG player</strong>, and I have a deep passion for games with intricate lore, fascinating characters, and worlds that feel like there's always something more to discover.</p><p>As for me?</p><p><strong>A little bit messy. A little bit fruity. A little bit shy.</strong></p><p>But always curious, always passionate, and probably overthinking some piece of game lore somewhere. 😂</p><p>I have a pretty strong sense of morality and I can't stand injustice or discrimination. I want this to be a space where people can enjoy games, talk about stories, share theories, and just be themselves without feeling judged.</p><p>And then there's the streaming...</p><p><strong>Stream mayhem is never the same twice.</strong></p><p>Sometimes there's a plan. Sometimes there absolutely isn't. Sometimes everything works perfectly.</p><p>And sometimes... well... <strong>we improvise.</strong> 😂</p><p>So be prepared for the unexpected.</p></div></div></div></section>'''
+          s=re.sub(r'<section class="section" id="about">.*?</section>','',s,count=1,flags=re.S)
+          s=s.replace('</main>',about+'</main>',1)
           p.write_text(s,encoding='utf-8')
           PY
-      - name: Commit
+      - name: Commit and clean up
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add index.html
+          git rm .github/workflows/about-update.yml about-trigger.txt
           git commit -m "Add About Liuk Soryu section"
           git push
