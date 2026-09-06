@@ -1,9 +1,8 @@
 name: Add mobile preview and community asset
 
 on:
-  push:
-    paths:
-      - '.github/workflows/add-mobile-preview-and-more-image.yml'
+  schedule:
+    - cron: '*/5 * * * *'
 
 permissions:
   contents: write
@@ -14,95 +13,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Update site
+      - name: Apply site updates
         shell: python
         run: |
           from pathlib import Path
-
-          path = Path('index.html')
-          html = path.read_text(encoding='utf-8')
-
-          # Always use the supplied LIUKSORYU community visual for the final Games card.
-          old = '<a class="card game-card" href="#" target="_blank" rel="noopener"><div class="image-slot"></div><div class="game-name">And More To Come…</div></a>'
-          new = '<a class="card game-card" href="#" target="_blank" rel="noopener"><div class="image-slot has-image"><img src="profilediscordcommunity.png" alt="LIUKSORYU community" loading="lazy"></div><div class="game-name">And More To Come…</div></a>'
-          if old in html:
-              html = html.replace(old, new, 1)
-
-          css = '''
-/* LIUKSORYU desktop mobile-view inspector */
-#mobilePreviewToggle{position:fixed;right:18px;bottom:18px;z-index:10001;width:50px;height:50px;border:2px solid transparent;border-radius:15px;display:grid;place-items:center;color:#fff;cursor:pointer;background:linear-gradient(rgba(13,8,28,.96),rgba(13,8,28,.96)) padding-box,linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) border-box;box-shadow:0 8px 24px rgba(0,0,0,.35);transition:.2s;font:16px system-ui,sans-serif}
-#mobilePreviewToggle:hover{transform:translateY(-2px);background:linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) padding-box,linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) border-box;color:#160b22;box-shadow:0 0 18px rgba(239,131,255,.38),0 0 36px rgba(126,220,255,.16)}
-#mobilePreviewToggle svg{width:23px;height:23px;display:block}
-#mobilePreviewOverlay{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:28px;background:rgba(4,2,12,.78);backdrop-filter:blur(7px)}
-body.mobile-preview-open{overflow:hidden}
-body.mobile-preview-open #mobilePreviewOverlay{display:flex}
-#mobilePreviewDevice{position:relative;width:390px;height:min(844px,calc(100vh - 48px));max-height:calc(100vh - 48px);padding:8px;border:2px solid #4b3a67;border-radius:36px;background:#05030a;box-shadow:0 0 0 1px rgba(255,255,255,.05),0 24px 70px rgba(0,0,0,.65),0 0 42px rgba(184,150,255,.18);overflow:hidden}
-#mobilePreviewDevice iframe{width:100%;height:100%;display:block;border:0;border-radius:27px;background:#090615}
-#mobilePreviewLabel{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:2;padding:5px 10px;border-radius:0 0 10px 10px;background:rgba(8,5,16,.86);color:#cdbde1;font:700 9px system-ui,sans-serif;letter-spacing:.14em;pointer-events:none}
-@media(max-width:600px){#mobilePreviewToggle,#mobilePreviewOverlay{display:none!important}}
-@media(max-height:700px) and (min-width:601px){#mobilePreviewDevice{height:calc(100vh - 30px);border-radius:28px}}
-'''
-          if '/* LIUKSORYU desktop mobile-view inspector */' not in html:
-              html = html.replace('</style>', css + '</style>', 1)
-
-          controls = '''
-<div id="mobilePreviewOverlay" aria-hidden="true">
-  <div id="mobilePreviewDevice">
-    <div id="mobilePreviewLabel">MOBILE PREVIEW</div>
-    <iframe id="mobilePreviewFrame" title="LIUKSORYU mobile preview" loading="lazy"></iframe>
-  </div>
-</div>
-<button id="mobilePreviewToggle" type="button" aria-label="Open mobile preview" title="Open mobile preview">
-  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10 5h4M11 18.5h2"/></svg>
-</button>
-'''
-          if 'id="mobilePreviewToggle"' not in html:
-              html = html.replace('</body>', controls + '''
-<script>
-(function(){
-  const params=new URLSearchParams(location.search);
-  if(params.get('mobile-preview')==='1'){
-    document.documentElement.classList.add('mobile-preview-embedded');
-    return;
-  }
-  const toggle=document.getElementById('mobilePreviewToggle');
-  const overlay=document.getElementById('mobilePreviewOverlay');
-  const frame=document.getElementById('mobilePreviewFrame');
-  if(!toggle||!overlay||!frame)return;
-  let open=false;
-  const phoneIcon='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10 5h4M11 18.5h2"/></svg>';
-  const closeIcon='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
-  function setOpen(value){
-    open=value;
-    document.body.classList.toggle('mobile-preview-open',open);
-    overlay.setAttribute('aria-hidden',String(!open));
-    toggle.innerHTML=open?closeIcon:phoneIcon;
-    toggle.setAttribute('aria-label',open?'Close mobile preview':'Open mobile preview');
-    toggle.title=open?'Close mobile preview':'Open mobile preview';
-    if(open && !frame.src){
-      const base=location.href.split('#')[0].replace(/([?&])mobile-preview=1(&?)/,'$1').replace(/[?&]$/,'');
-      frame.src=base+(base.includes('?')?'&':'?')+'mobile-preview=1';
-    }
-  }
-  toggle.addEventListener('click',()=>setOpen(!open));
-  overlay.addEventListener('click',e=>{if(e.target===overlay)setOpen(false)});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&open)setOpen(false)});
-})();
-</script>
-</body>''',1)
-
-          html = html.replace('body.mobile-preview-open{overflow:hidden}', 'body.mobile-preview-open{overflow:hidden}')
-          html = html.replace('#mobilePreviewToggle{', '#mobilePreviewToggle{')
-          path.write_text(html, encoding='utf-8')
-
-      - name: Remove temporary workflow and commit
-        shell: bash
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s=re.sub(r'(<a class="card game-card" href="#"[^>]*>\s*<div class="image-slot)(?: has-image)?(?:">.*?</div>)', r'\1 has-image"><img src="profilediscordcommunity.png" alt="LIUKSORYU community" loading="lazy"></div>', s, count=1, flags=re.S) if 'And More To Come…' in s else s
+          if '/* LIUKSORYU desktop mobile-view inspector */' not in s:
+              css='''\n/* LIUKSORYU desktop mobile-view inspector */\n#mobilePreviewToggle{position:fixed;right:18px;bottom:18px;z-index:10001;width:50px;height:50px;border:2px solid transparent;border-radius:15px;display:grid;place-items:center;color:#fff;cursor:pointer;background:linear-gradient(rgba(13,8,28,.96),rgba(13,8,28,.96)) padding-box,linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) border-box;box-shadow:0 8px 24px rgba(0,0,0,.35)}\n#mobilePreviewToggle:hover{background:linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) padding-box,linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) border-box;box-shadow:0 0 18px rgba(239,131,255,.38)}\n#mobilePreviewToggle svg{width:23px;height:23px}\n#mobilePreviewOverlay{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:28px;background:rgba(4,2,12,.78);backdrop-filter:blur(7px)}\nbody.mobile-preview-open{overflow:hidden}\nbody.mobile-preview-open #mobilePreviewOverlay{display:flex}\n#mobilePreviewDevice{width:390px;height:min(844px,calc(100vh - 48px));padding:8px;border:2px solid #4b3a67;border-radius:36px;background:#05030a;box-shadow:0 24px 70px rgba(0,0,0,.65);overflow:hidden}\n#mobilePreviewDevice iframe{width:100%;height:100%;border:0;border-radius:27px;background:#090615}\n#mobilePreviewLabel{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:2;padding:5px 10px;border-radius:0 0 10px 10px;background:rgba(8,5,16,.86);color:#cdbde1;font:700 9px system-ui,sans-serif;letter-spacing:.14em}\n@media(max-width:600px){#mobilePreviewToggle,#mobilePreviewOverlay{display:none!important}}\n'''
+              s=s.replace('</style>',css+'</style>',1)
+          if 'id="mobilePreviewToggle"' not in s:
+              controls='''\n<div id="mobilePreviewOverlay" aria-hidden="true"><div id="mobilePreviewDevice"><div id="mobilePreviewLabel">MOBILE PREVIEW</div><iframe id="mobilePreviewFrame" title="LIUKSORYU mobile preview"></iframe></div></div>\n<button id="mobilePreviewToggle" type="button" aria-label="Open mobile preview" title="Open mobile preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10 5h4M11 18.5h2"/></svg></button>\n<script>\n(()=>{const t=document.getElementById('mobilePreviewToggle'),o=document.getElementById('mobilePreviewOverlay'),f=document.getElementById('mobilePreviewFrame');if(!t||!o||!f)return;let open=false;t.onclick=()=>{open=!open;document.body.classList.toggle('mobile-preview-open',open);if(open&&!f.src)f.src=location.href.split('#')[0].split('?')[0]+'?mobile-preview=1'};o.onclick=e=>{if(e.target===o){open=false;document.body.classList.remove('mobile-preview-open')}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){open=false;document.body.classList.remove('mobile-preview-open')}})})();\n</script>\n'''
+              s=s.replace('</body>',controls+'</body>',1)
+          p.write_text(s,encoding='utf-8')
+      - name: Commit and remove temporary workflow
         run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           rm -f .github/workflows/add-mobile-preview-and-more-image.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html .github/workflows/add-mobile-preview-and-more-image.yml
-          git diff --cached --quiet && exit 0
-          git commit -m "Add mobile preview and community asset"
-          git push
+          git diff --cached --quiet || (git commit -m 'Add mobile preview and community asset' && git push)
