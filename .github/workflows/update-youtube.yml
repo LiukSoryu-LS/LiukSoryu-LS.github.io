@@ -48,31 +48,28 @@ jobs:
           from pathlib import Path
           import re
           p=Path('index.html'); s=p.read_text(encoding='utf-8')
-          marker='/* LIUKSORYU MOBILE FOOTER SPACING V2 */'
-          # Remove prior versions of this footer-only patch, but leave all other homepage CSS untouched.
           s=re.sub(r'<style>/\* LIUKSORYU MOBILE FOOTER SPACING V[0-9]+ \*/.*?</style>','',s,flags=re.S)
-          patch='''<style>/* LIUKSORYU MOBILE FOOTER SPACING V2 */
+          patch='''<style>/* LIUKSORYU MOBILE FOOTER SPACING V3 */
           @media(max-width:600px){
             .footer{padding-top:42px!important;padding-bottom:34px!important}
-            .footer-inner{gap:28px!important}
+            .footer-inner{gap:34px!important}
             .footer-brand{width:100%!important;gap:18px!important}
-            .footer-brand>img{width:150px!important;height:58px!important;object-fit:contain!important;display:block!important;margin:0 0 2px 0!important}
+            .footer-brand>img{width:150px!important;height:58px!important;object-fit:contain!important;display:block!important;margin:0 0 4px 0!important}
             .footer-copy{font-size:11px!important;line-height:1.85!important;margin:0!important}
-            .footer-right{width:100%!important;gap:24px!important;align-items:flex-start!important}
+            .footer-right{width:100%!important;gap:24px!important;align-items:flex-start!important;margin-top:18px!important}
             .footer-socials{gap:12px!important;margin:0!important;padding:0!important}
             .footer-social{width:46px!important;height:46px!important;flex:0 0 46px!important}
-            .footer-links{gap:20px!important;line-height:1.9!important;margin:0!important;padding:0!important}
+            .footer-links{gap:20px!important;line-height:1.9!important;margin:8px 0 0!important;padding:0!important}
           }
           </style>'''
-          # Put the patch immediately before </head>; it is isolated to mobile footer spacing.
           i=s.find('</head>')
           if i<0: raise SystemExit('Could not find </head> in index.html')
           s=s[:i]+patch+s[i:]
           p.write_text(s,encoding='utf-8')
-          print('Mobile footer spacing V2 installed.')
+          print('Mobile footer spacing V3 installed.')
           PY
 
-      - name: Commit generated data and mobile spacing
+      - name: Commit
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
@@ -81,6 +78,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No changes.'
           else
-            git commit -m 'Improve mobile footer spacing [skip ci]'
+            git commit -m 'Increase mobile footer spacing [skip ci]'
             git push
           fi
