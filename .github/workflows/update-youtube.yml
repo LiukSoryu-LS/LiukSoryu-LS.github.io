@@ -41,33 +41,35 @@ jobs:
           Path('videos.json').write_text(json.dumps(videos,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
 
-      - name: Patch mobile footer spacing in place
+      - name: Fix ONLY mobile footer layout
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
-          p=Path('index.html'); s=p.read_text(encoding='utf-8')
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
           s=re.sub(r'<style>/\* LIUKSORYU MOBILE FOOTER SPACING V[0-9]+ \*/.*?</style>','',s,flags=re.S)
           s=re.sub(r'<style>/\* LIUKSORYU MOBILE FOOTER FINAL SPACING \*/.*?</style>','',s,flags=re.S)
-          patch='''<style>/* LIUKSORYU MOBILE FOOTER FINAL SPACING */
-          @media(max-width:600px){
-            .footer{padding-top:52px!important;padding-bottom:40px!important}
-            .footer-inner{gap:36px!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important}
+          s=re.sub(r'<style>/\* LIUKSORYU MOBILE FOOTER FINAL \*/.*?</style>','',s,flags=re.S)
+          patch='''<style>/* LIUKSORYU MOBILE FOOTER FINAL */
+          @media (max-width:600px){
+            .footer{padding:48px 0 38px!important}
+            .footer-inner{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:34px!important}
             .footer-brand{width:100%!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:22px!important}
-            .footer-brand>img{width:150px!important;height:58px!important;object-fit:contain!important;display:block!important;margin:0!important}
-            .footer-copy{margin:0!important;line-height:2!important}
+            .footer-brand>img{width:150px!important;height:58px!important;display:block!important;object-fit:contain!important;margin:0!important}
+            .footer-copy{margin:0!important;line-height:1.9!important}
             .footer-right{width:100%!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:30px!important;margin:0!important}
-            .footer-socials{display:flex!important;gap:14px!important;margin:0!important;padding:0!important}
+            .footer-socials{display:flex!important;gap:14px!important;margin:0!important;padding:0!important;flex-wrap:nowrap!important}
             .footer-social{width:46px!important;height:46px!important;flex:0 0 46px!important}
-            .footer-links{display:flex!important;gap:22px!important;line-height:1.9!important;margin:0!important;padding:0!important;flex-wrap:wrap!important}
+            .footer-links{display:flex!important;gap:22px!important;align-items:center!important;margin:0!important;padding:0!important;line-height:1.9!important;flex-wrap:wrap!important}
           }
           </style>'''
           i=s.find('</head>')
           if i<0: raise SystemExit('Could not find </head>')
           s=s[:i]+patch+s[i:]
           p.write_text(s,encoding='utf-8')
-          print('Installed final mobile footer spacing.')
+          print('Installed final mobile footer-only layout.')
           PY
 
       - name: Commit
@@ -79,6 +81,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No changes.'
           else
-            git commit -m 'Finalize mobile footer spacing [skip ci]'
+            git commit -m 'Fix mobile footer layout only [skip ci]'
             git push
           fi
