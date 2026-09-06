@@ -21,57 +21,63 @@ jobs:
 
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
-          marker = '<script id="mobile-preview-carousel-drag-fix">'
+          marker = '<script id="mobile-preview-carousel-drag-fix-v2">'
 
           if marker in text:
-              print('Carousel drag fix already present.')
+              print('Carousel drag fix v2 already present.')
               raise SystemExit(0)
 
-          patch = r'''<script id="mobile-preview-carousel-drag-fix">
+          patch = r'''<script id="mobile-preview-carousel-drag-fix-v2">
           (function(){
             if(!new URLSearchParams(window.location.search).has('mobile-preview')) return;
             var games=document.querySelector('.games');
             if(!games) return;
-            var down=false,startX=0,startScroll=0,moved=false,pointerId=null;
+
             games.style.cursor='grab';
+            games.style.userSelect='none';
+            games.style.webkitUserSelect='none';
             games.style.touchAction='pan-x';
 
-            games.addEventListener('pointerdown',function(e){
-              if(e.pointerType==='mouse' && e.button!==0) return;
-              down=true;
-              moved=false;
-              pointerId=e.pointerId;
+            var dragging=false;
+            var dragged=false;
+            var startX=0;
+            var startScroll=0;
+
+            games.addEventListener('mousedown',function(e){
+              if(e.button!==0) return;
+              dragging=true;
+              dragged=false;
               startX=e.clientX;
               startScroll=games.scrollLeft;
-              if(games.setPointerCapture) games.setPointerCapture(e.pointerId);
               games.style.cursor='grabbing';
+              e.preventDefault();
             });
 
-            games.addEventListener('pointermove',function(e){
-              if(!down) return;
+            window.addEventListener('mousemove',function(e){
+              if(!dragging) return;
               var dx=e.clientX-startX;
-              if(Math.abs(dx)>6) moved=true;
-              if(!moved) return;
-              e.preventDefault();
+              if(Math.abs(dx)>4) dragged=true;
+              if(!dragged) return;
               games.scrollLeft=startScroll-dx;
-            },{passive:false});
+              e.preventDefault();
+            },true);
 
-            function end(){
-              if(!down) return;
-              down=false;
-              pointerId=null;
+            function stopDrag(){
+              if(!dragging) return;
+              dragging=false;
               games.style.cursor='grab';
             }
 
-            games.addEventListener('pointerup',end);
-            games.addEventListener('pointercancel',end);
-            games.addEventListener('lostpointercapture',end);
+            window.addEventListener('mouseup',stopDrag,true);
+            window.addEventListener('blur',stopDrag);
+
+            games.addEventListener('dragstart',function(e){e.preventDefault();},true);
 
             games.addEventListener('click',function(e){
-              if(moved){
+              if(dragged){
                 e.preventDefault();
                 e.stopPropagation();
-                moved=false;
+                dragged=false;
               }
             },true);
           })();
@@ -80,8 +86,8 @@ jobs:
           if '</body>' not in text:
               raise SystemExit('Could not find </body> in index.html')
 
-          text = text.replace('</body>', patch + '\n</body>', 1)
-          path.write_text(text, encoding='utf-8')
+          text=text.replace('</body>',patch+'\n</body>',1)
+          path.write_text(text,encoding='utf-8')
 
       - name: Commit patched homepage
         shell: bash
@@ -92,6 +98,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "Enable drag swipe in mobile preview games carousel"
+            git commit -m "Fix desktop mobile preview drag with mouse events"
             git push
           fi
