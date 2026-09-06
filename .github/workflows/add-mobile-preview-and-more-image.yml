@@ -14,43 +14,38 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Apply site updates
         shell: python
         run: |
           from pathlib import Path
+          import base64
           import re
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          s=re.sub(r'(<a class="card game-card" href="#"[^>]*>\s*<div class="image-slot)(?: has-image)?(?:">.*?</div>)', r'\1 has-image"><img src="profilediscordcommunity.png" alt="LIUKSORYU community" loading="lazy"></div>', s, count=1, flags=re.S) if 'And More To Come…' in s else s
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          pattern = r'(<a class="card game-card"[^>]*>\s*<div class="image-slot)(?: has-image)?(?:">.*?</div>)(\s*<div class="game-name">And More To Come…</div>)'
+          replacement = r'\1 has-image"><img src="profilediscordcommunity.png" alt="LIUKSORYU community" loading="lazy"></div>\2'
+          s = re.sub(pattern, replacement, s, count=1, flags=re.S)
+
+          css = base64.b64decode('LyogTElVS1NPUllVIGRlc2t0b3AgbW9iaWxlLXZpZXcgaW5zcGVjdG9yICovCiNtb2JpbGVQcmV2aWV3VG9nZ2xle3Bvc2l0aW9uOmZpeGVkO3JpZ2h0OjE4cHg7Ym90dG9tOjE4cHg7ei1pbmRleDoxMDAwMTt3aWR0aDo1MHB4O2hlaWdodDo1MHB4O2JvcmRlcjoycHggc29saWQgdHJhbnNwYXJlbnQ7Ym9yZGVyLXJhZGl1czoxNXB4O2Rpc3BsYXk6Z3JpZDtwbGFjZS1pdGVtczpjZW50ZXI7Y29sb3I6I2ZmZjtjdXJzb3I6cG9pbnRlcjtiYWNrZ3JvdW5kOmxpbmVhci1ncmFkaWVudChyZ2JhKDEzLDgsMjgsLjk2KSxyZ2JhKDEzLDgsMjgsLjk2KSkgcGFkZGluZy1ib3gsbGluZWFyLWdyYWRpZW50KDExMGRlZywjZWY4M2ZmLCNiODk2ZmYgNDglLCM3ZWRjZmYpIGJvcmRlci1ib3g7Ym94LXNoYWRvdzowIDhweCAyNHB4IHJnYmEoMCwwLDAsLjM1KX0KI21vYmlsZVByZXZpZXdUb2dnbGU6aG92ZXJ7YmFja2dyb3VuZDpsaW5lYXItZ3JhZGllbnQoMTEwZGVnLCNlZjgzZmYsI2I4OTZmZiA0OCUsIzdlZGNmZikgcGFkZGluZy1ib3gsbGluZWFyLWdyYWRpZW50KDExMGRlZywjZWY4M2ZmLCNiODk2ZmYgNDglLCM3ZWRjZmYpIGJvcmRlci1ib3g7Ym94LXNoYWRvdzowIDAgMThweCByZ2JhKDIzOSwxMzEsMjU1LC4zOCl9CiNtb2JpbGVQcmV2aWV3VG9nZ2xlIHN2Z3t3aWR0aDoyM3B4O2hlaWdodDoyM3B4fQojbW9iaWxlUHJldmlld092ZXJsYXl7cG9zaXRpb246Zml4ZWQ7aW5zZXQ6MDt6LWluZGV4OjEwMDAwO2Rpc3BsYXk6bm9uZTthbGlnbi1pdGVtczpjZW50ZXI7anVzdGlmeS1jb250ZW50OmNlbnRlcjtwYWRkaW5nOjI4cHg7YmFja2dyb3VuZDpyZ2JhKDQsMiwxMiwuNzgpO2JhY2tkcm9wLWZpbHRlcjpibHVyKDdweCl9CmJvZHkubW9iaWxlLXByZXZpZXctb3BlbntvdmVyZmxvdzpoaWRkZW59CmJvZHkubW9iaWxlLXByZXZpZXctb3BlbiAjbW9iaWxlUHJldmlld092ZXJsYXl7ZGlzcGxheTpmbGV4fQojbW9iaWxlUHJldmlld0RldmljZXt3aWR0aDozOTBweDtoZWlnaHQ6bWluKDg0NHB4LGNhbGMoMTAwdmggLSA0OHB4KSk7cGFkZGluZzo4cHg7Ym9yZGVyOjJweCBzb2xpZCAjNGIzYTY3O2JvcmRlci1yYWRpdXM6MzZweDtiYWNrZ3JvdW5kOiMwNTAzMGE7Ym94LXNoYWRvdzowIDI0cHggNzBweCByZ2JhKDAsMCwwLC42NSk7b3ZlcmZsb3c6aGlkZGVufQojbW9iaWxlUHJldmlld0RldmljZSBpZnJhbWV7d2lkdGg6MTAwJTtoZWlnaHQ6MTAwJTtib3JkZXI6MDtib3JkZXItcmFkaXVzOjI3cHg7YmFja2dyb3VuZDojMDkwNjE1fQojbW9iaWxlUHJldmlld0xhYmVse3Bvc2l0aW9uOmFic29sdXRlO2xlZnQ6NTAlO3RvcDo4cHg7dHJhbnNmb3JtOnRyYW5zbGF0ZVgoLTUwJSk7ei1pbmRleDoyO3BhZGRpbmc6NXB4IDEwcHg7Ym9yZGVyLXJhZGl1czowIDAgMTBweCAxMHB4O2JhY2tncm91bmQ6cmdiYSg4LDUsMTYsLjg2KTtjb2xvcjojY2RiZGUxO2ZvbnQ6NzAwIDlweCBzeXN0ZW0tdWksc2Fucy1zZXJpZjtsZXR0ZXItc3BhY2luZzouMTRlbX0KQG1lZGlhKG1heC13aWR0aDo2MDBweCl7I21vYmlsZVByZXZpZXdUb2dnbGUsI21vYmlsZVByZXZpZXdPdmVybGF5e2Rpc3BsYXk6bm9uZSFpbXBvcnRhbnR9fQo=').decode('utf-8')
           if '/* LIUKSORYU desktop mobile-view inspector */' not in s:
-              css='''
-/* LIUKSORYU desktop mobile-view inspector */
-#mobilePreviewToggle{position:fixed;right:18px;bottom:18px;z-index:10001;width:50px;height:50px;border:2px solid transparent;border-radius:15px;display:grid;place-items:center;color:#fff;cursor:pointer;background:linear-gradient(rgba(13,8,28,.96),rgba(13,8,28,.96)) padding-box,linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) border-box;box-shadow:0 8px 24px rgba(0,0,0,.35)}
-#mobilePreviewToggle:hover{background:linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) padding-box,linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) border-box;box-shadow:0 0 18px rgba(239,131,255,.38)}
-#mobilePreviewToggle svg{width:23px;height:23px}
-#mobilePreviewOverlay{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:28px;background:rgba(4,2,12,.78);backdrop-filter:blur(7px)}
-body.mobile-preview-open{overflow:hidden}
-body.mobile-preview-open #mobilePreviewOverlay{display:flex}
-#mobilePreviewDevice{width:390px;height:min(844px,calc(100vh - 48px));padding:8px;border:2px solid #4b3a67;border-radius:36px;background:#05030a;box-shadow:0 24px 70px rgba(0,0,0,.65);overflow:hidden}
-#mobilePreviewDevice iframe{width:100%;height:100%;border:0;border-radius:27px;background:#090615}
-#mobilePreviewLabel{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:2;padding:5px 10px;border-radius:0 0 10px 10px;background:rgba(8,5,16,.86);color:#cdbde1;font:700 9px system-ui,sans-serif;letter-spacing:.14em}
-@media(max-width:600px){#mobilePreviewToggle,#mobilePreviewOverlay{display:none!important}}
-'''
-              s=s.replace('</style>',css+'</style>',1)
+              s = s.replace('</style>', css + '</style>', 1)
+
+          controls = base64.b64decode('PGRpdiBpZD0ibW9iaWxlUHJldmlld092ZXJsYXkiIGFyaWEtaGlkZGVuPSJ0cnVlIj48ZGl2IGlkPSJtb2JpbGVQcmV2aWV3RGV2aWNlIj48ZGl2IGlkPSJtb2JpbGVQcmV2aWV3TGFiZWwiPk1PQklMRSBQUkVWSUVXPC9kaXY+PGlmcmFtZSBpZD0ibW9iaWxlUHJldmlld0ZyYW1lIiB0aXRsZT0iTElVS1NPUllVIG1vYmlsZSBwcmV2aWV3Ij48L2lmcmFtZT48L2Rpdj48L2Rpdj4KPGJ1dHRvbiBpZD0ibW9iaWxlUHJldmlld1RvZ2dsZSIgdHlwZT0iYnV0dG9uIiBhcmlhLWxhYmVsPSJPcGVuIG1vYmlsZSBwcmV2aWV3IiB0aXRsZT0iT3BlbiBtb2JpbGUgcHJldmlldyI+PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48cmVjdCB4PSI3IiB5PSIyLjUiIHdpZHRoPSIxMCIgaGVpZ2h0PSIxOSIgcng9IjIuNCIvPjxwYXRoIGQ9Ik0xMCA1aDRNMTEgMTguNWgyIi8+PC9zdmc+PC9idXR0b24+CjxzY3JpcHQ+CigoKT0+e2NvbnN0IHQ9ZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ21vYmlsZVByZXZpZXdUb2dnbGUnKSxvPWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdtb2JpbGVQcmV2aWV3T3ZlcmxheScpLGY9ZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ21vYmlsZVByZXZpZXdGcmFtZScpO2lmKCF0fHwhb3x8IWYpcmV0dXJuO2xldCBvcGVuPWZhbHNlO3Qub25jbGljaz0oKT0+e29wZW49IW9wZW47ZG9jdW1lbnQuYm9keS5jbGFzc0xpc3QudG9nZ2xlKCdtb2JpbGUtcHJldmlldy1vcGVuJyxvcGVuKTtpZihvcGVuJiYhZi5zcmMpZi5zcmM9bG9jYXRpb24uaHJlZi5zcGxpdCgnIycpWzBdLnNwbGl0KCc/JylbMF0rJz9tb2JpbGUtcHJldmlldz0xJzt9O28ub25jbGljaz1lPT57aWYoZS50YXJnZXQ9PT1vKXtvcGVuPWZhbHNlO2RvY3VtZW50LmJvZHkuY2xhc3NMaXN0LnJlbW92ZSgnbW9iaWxlLXByZXZpZXctb3BlbicpfX07ZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcigna2V5ZG93bicsZT0+e2lmKGUua2V5PT09J0VzY2FwZScpe29wZW49ZmFsc2U7ZG9jdW1lbnQuYm9keS5jbGFzc0xpc3QucmVtb3ZlKCdtb2JpbGUtcHJldmlldy1vcGVuJyl9fX0pKCk7Cjwvc2NyaXB0Pgo=').decode('utf-8')
           if 'id="mobilePreviewToggle"' not in s:
-              controls='''
-<div id="mobilePreviewOverlay" aria-hidden="true"><div id="mobilePreviewDevice"><div id="mobilePreviewLabel">MOBILE PREVIEW</div><iframe id="mobilePreviewFrame" title="LIUKSORYU mobile preview"></iframe></div></div>
-<button id="mobilePreviewToggle" type="button" aria-label="Open mobile preview" title="Open mobile preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10 5h4M11 18.5h2"/></svg></button>
-<script>
-(()=>{const t=document.getElementById('mobilePreviewToggle'),o=document.getElementById('mobilePreviewOverlay'),f=document.getElementById('mobilePreviewFrame');if(!t||!o||!f)return;let open=false;t.onclick=()=>{open=!open;document.body.classList.toggle('mobile-preview-open',open);if(open&&!f.src)f.src=location.href.split('#')[0].split('?')[0]+'?mobile-preview=1'};o.onclick=e=>{if(e.target===o){open=false;document.body.classList.remove('mobile-preview-open')}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){open=false;document.body.classList.remove('mobile-preview-open')}})})();
-</script>
-'''
-              s=s.replace('</body>',controls+'</body>',1)
-          p.write_text(s,encoding='utf-8')
-      - name: Commit and remove temporary workflow
+              s = s.replace('</body>', controls + '</body>', 1)
+
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit changes and remove temporary workflow
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           rm -f .github/workflows/add-mobile-preview-and-more-image.yml
           git add index.html .github/workflows/add-mobile-preview-and-more-image.yml
-          git diff --cached --quiet || (git commit -m 'Add mobile preview and community asset' && git push)
+          if ! git diff --cached --quiet; then
+            git commit -m 'Add mobile preview and community asset'
+            git push
+          fi
