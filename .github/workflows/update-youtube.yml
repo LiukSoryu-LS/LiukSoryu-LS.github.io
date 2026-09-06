@@ -52,13 +52,12 @@ jobs:
           from pathlib import Path
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          marker='/* LIUKSORYU social button interaction V2 */'
+          marker='/* LIUKSORYU social button interaction V3 */'
           if marker not in s:
-              css='''<style>/* LIUKSORYU social button interaction V2 */
-          .social,.footer-social{cursor:pointer;pointer-events:auto;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease;color:#fff;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-          .social svg,.social svg *,.footer-social svg,.footer-social svg *{color:#fff!important;fill:#fff!important;stroke:#fff!important}
+              css='''<style>/* LIUKSORYU social button interaction V3 */
+          .social,.footer-social{cursor:pointer;pointer-events:auto;color:#fff!important;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+          .social svg,.social svg *,.social:hover svg,.social:hover svg *,.social:focus svg,.social:focus svg *,.social:focus-visible svg,.social:focus-visible svg *,.social:active svg,.social:active svg *,.footer-social svg,.footer-social svg *,.footer-social:hover svg,.footer-social:hover svg *,.footer-social:focus svg,.footer-social:focus svg *,.footer-social:focus-visible svg,.footer-social:focus-visible svg *,.footer-social:active svg,.footer-social:active svg *{color:#fff!important;fill:#fff!important;stroke:#fff!important}
           .social:hover,.footer-social:hover{transform:translateY(-2px);background:linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) padding-box,linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) border-box!important;border-color:transparent!important;box-shadow:0 0 18px rgba(239,131,255,.32),0 0 34px rgba(126,220,255,.14)!important;color:#fff!important}
-          .social:hover svg,.social:hover svg *,.footer-social:hover svg,.footer-social:hover svg *{color:#fff!important;fill:#fff!important;stroke:#fff!important}
           .social:focus-visible,.footer-social:focus-visible{outline:2px solid #7edcff;outline-offset:3px}
           .social:active,.footer-social:active{transform:translateY(0) scale(.97)}
           </style>'''
@@ -66,9 +65,9 @@ jobs:
               if i<0: raise SystemExit('Could not find homepage style block')
               s=s[:i]+css+s[i:]
               p.write_text(s,encoding='utf-8')
-              print('Social button interaction V2 installed.')
+              print('Social button interaction V3 installed.')
           else:
-              print('Social button interaction V2 already installed.')
+              print('Social button interaction V3 already installed.')
           PY
 
       - name: Commit generated updates
@@ -80,6 +79,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No generated changes.'
           else
-            git commit -m 'Polish social button interactions [skip ci]'
+            git commit -m 'Keep social icons white in all states [skip ci]'
             git push
           fi
