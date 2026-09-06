@@ -1,1 +1,0 @@
-Trigger repaired mobile preview carousel fix
