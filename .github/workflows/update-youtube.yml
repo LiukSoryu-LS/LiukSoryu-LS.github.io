@@ -23,7 +23,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import json, re, urllib.request, xml.etree.ElementTree as ET
+          import json,re,urllib.request,xml.etree.ElementTree as ET
           from pathlib import Path
           req=urllib.request.Request('https://www.youtube.com/@liuksoryu/videos',headers={'User-Agent':'Mozilla/5.0'})
           html=urllib.request.urlopen(req,timeout=30).read().decode('utf-8','ignore')
@@ -43,94 +43,17 @@ jobs:
               published=entry.findtext('atom:published',default='',namespaces=ns)
               videos.append({'title':title,'url':f'https://www.youtube.com/watch?v={vid}','thumbnail':f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg','meta':f'YouTube • {published[:10]}' if published else 'YouTube'})
           Path('videos.json').write_text(json.dumps(videos,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          print(f'Updated {len(videos)} latest videos')
           PY
 
-      - name: Install permanent desktop Mobile Preview carousel drag fix
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          marker='LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V2'
-          script='''<script>/* LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V2 */
-          (function(){
-            if(!new URLSearchParams(window.location.search).has('mobile-preview'))return;
-            function init(){
-              var games=document.querySelector('.games');
-              if(!games||games.dataset.dragFix==='v2')return;
-              games.dataset.dragFix='v2';
-              games.style.cursor='grab';
-              games.style.userSelect='none';
-              games.style.webkitUserSelect='none';
-              games.style.touchAction='pan-x';
-              games.style.scrollBehavior='auto';
-              var dragging=false,moved=false,startX=0,startScroll=0,pointerId=null;
-              games.addEventListener('pointerdown',function(e){
-                if(e.pointerType==='touch'||e.button!==0)return;
-                dragging=true;moved=false;startX=e.clientX;startScroll=games.scrollLeft;pointerId=e.pointerId;
-                games.style.cursor='grabbing';
-                try{games.setPointerCapture(pointerId);}catch(_){ }
-                e.preventDefault();
-              });
-              games.addEventListener('pointermove',function(e){
-                if(!dragging||e.pointerId!==pointerId)return;
-                var dx=e.clientX-startX;
-                if(Math.abs(dx)>4)moved=true;
-                if(moved){games.scrollLeft=startScroll-dx;e.preventDefault();}
-              });
-              function stop(e){
-                if(pointerId!==null&&e&&e.pointerId!==pointerId)return;
-                dragging=false;pointerId=null;games.style.cursor='grab';
-              }
-              games.addEventListener('pointerup',stop);
-              games.addEventListener('pointercancel',stop);
-              games.addEventListener('lostpointercapture',function(){dragging=false;pointerId=null;games.style.cursor='grab';});
-              games.addEventListener('dragstart',function(e){e.preventDefault();},true);
-              games.addEventListener('click',function(e){if(moved){e.preventDefault();e.stopImmediatePropagation();moved=false;}},true);
-            }
-            if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
-          })();</script>'''
-          pattern=r'<script>/\* LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V(?:1|2) \*/.*?</script>'
-          if re.search(pattern,s,flags=re.S):
-              s=re.sub(pattern,script,s,count=1,flags=re.S)
-              print('Updated existing carousel drag fix.')
-          else:
-              insert_at=s.rfind('</html>')
-              if insert_at<0: insert_at=len(s)
-              s=s[:insert_at]+script+s[insert_at:]
-              print('Installed carousel drag fix.')
-          p.write_text(s,encoding='utf-8')
-          PY
-
-      - name: Connect latest videos to homepage
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('index.html'); s=p.read_text(encoding='utf-8')
-          if 'data-video-card' in s and 'loadLatestVideos' not in s:
-              needle="<script>document.addEventListener('dragstart',e=>e.preventDefault());"
-              if needle in s:
-                  script="""<script>async function loadLatestVideos(){try{const r=await fetch('videos.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('videos.json unavailable');const videos=await r.json();document.querySelectorAll('[data-video-card]').forEach((card,i)=>{const v=videos[i];if(!v){card.style.display='none';return;}card.style.display='';card.href=v.url;const t=card.querySelector('.video-title');const m=card.querySelector('.video-meta');const slot=card.querySelector('.image-slot');if(t)t.textContent=v.title;if(m)m.textContent=v.meta||'YouTube';if(slot){slot.style.backgroundImage=`url(\"${v.thumbnail}\")`;slot.style.backgroundSize='cover';slot.style.backgroundPosition='center';slot.style.backgroundRepeat='no-repeat';}});}catch(e){console.warn('Latest videos could not be loaded:',e)}}loadLatestVideos();document.addEventListener('dragstart',e=>e.preventDefault());</script>"""
-                  s=s.replace(needle,script,1)
-                  p.write_text(s,encoding='utf-8')
-                  print('Homepage video loader installed.')
-          else:
-              print('Homepage video loader already present or no video cards.')
-          PY
-
-      - name: Commit generated updates
+      - name: Keep homepage data unchanged except latest video json
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html videos.json
+          git add videos.json
           if git diff --cached --quiet; then
-            echo 'No generated changes.'
+            echo 'No video changes.'
           else
-            git commit -m 'Update YouTube content and preserve mobile carousel drag [skip ci]'
+            git commit -m 'Update latest YouTube videos [skip ci]'
             git push
           fi
