@@ -45,15 +45,39 @@ jobs:
           Path('videos.json').write_text(json.dumps(videos,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
 
-      - name: Keep homepage data unchanged except latest video json
+      - name: Ensure social buttons behave like the site's other interactive buttons
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          marker='/* LIUKSORYU social button interaction V1 */'
+          if marker not in s:
+              css='''<style>/* LIUKSORYU social button interaction V1 */
+          .social,.footer-social{cursor:pointer;pointer-events:auto;transition:transform .2s ease,box-shadow .2s ease,background .2s ease,border-color .2s ease;color:#fff;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+          .social:hover,.footer-social:hover{transform:translateY(-2px);background:linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) padding-box,linear-gradient(110deg,#ef83ff 0%,#b896ff 48%,#7edcff 100%) border-box!important;border-color:transparent!important;box-shadow:0 0 18px rgba(239,131,255,.32),0 0 34px rgba(126,220,255,.14)!important;color:#160b22!important}
+          .social:focus-visible,.footer-social:focus-visible{outline:2px solid #7edcff;outline-offset:3px}
+          .social:active,.footer-social:active{transform:translateY(0) scale(.97)}
+          </style>'''
+              i=s.find('</style>')
+              if i<0: raise SystemExit('Could not find homepage style block')
+              s=s[:i]+css+s[i:]
+              p.write_text(s,encoding='utf-8')
+              print('Social button interaction installed.')
+          else:
+              print('Social button interaction already installed.')
+          PY
+
+      - name: Commit generated updates
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add videos.json
+          git add index.html videos.json
           if git diff --cached --quiet; then
-            echo 'No video changes.'
+            echo 'No generated changes.'
           else
-            git commit -m 'Update latest YouTube videos [skip ci]'
+            git commit -m 'Polish social button interactions [skip ci]'
             git push
           fi
