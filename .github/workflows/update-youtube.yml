@@ -1,6 +1,11 @@
 name: Update YouTube videos
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - videos.json
+      - .github/workflows/update-youtube.yml
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:
@@ -15,25 +20,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Update videos.json
+      - name: Fetch latest YouTube uploads
         shell: bash
         run: |
           python3 - <<'PY'
           import json, re, urllib.request, xml.etree.ElementTree as ET
           from pathlib import Path
-          req = urllib.request.Request('https://www.youtube.com/@liuksoryu/videos', headers={'User-Agent':'Mozilla/5.0'})
-          html = urllib.request.urlopen(req, timeout=30).read().decode('utf-8', 'ignore')
-          channel_id = None
-          for pattern in [r'"channelId":"(UC[^"]+)"', r'"externalId":"(UC[^"]+)"', r'channelId=(UC[A-Za-z0-9_-]+)']:
-              m = re.search(pattern, html)
+          req=urllib.request.Request('https://www.youtube.com/@liuksoryu/videos',headers={'User-Agent':'Mozilla/5.0'})
+          html=urllib.request.urlopen(req,timeout=30).read().decode('utf-8','ignore')
+          channel_id=None
+          for pattern in [r'"channelId":"(UC[^"]+)"',r'"externalId":"(UC[^"]+)"',r'channelId=(UC[A-Za-z0-9_-]+)']:
+              m=re.search(pattern,html)
               if m:
-                  channel_id = m.group(1)
-                  break
-          if not channel_id:
-              raise SystemExit('Could not resolve LIUKSORYU channel ID')
-          xml = urllib.request.urlopen(f'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}', timeout=30).read()
-          root = ET.fromstring(xml)
-          ns = {'yt':'http://www.youtube.com/xml/schemas/2015', 'atom':'http://www.w3.org/2005/Atom'}
+                  channel_id=m.group(1); break
+          if not channel_id: raise SystemExit('Could not resolve LIUKSORYU channel ID')
+          xml=urllib.request.urlopen(f'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}',timeout=30).read()
+          root=ET.fromstring(xml)
+          ns={'yt':'http://www.youtube.com/xml/schemas/2015','atom':'http://www.w3.org/2005/Atom'}
           videos=[]
           for entry in root.findall('atom:entry',ns)[:5]:
               vid=entry.findtext('yt:videoId',default='',namespaces=ns)
@@ -41,19 +44,85 @@ jobs:
               published=entry.findtext('atom:published',default='',namespaces=ns)
               videos.append({'title':title,'url':f'https://www.youtube.com/watch?v={vid}','thumbnail':f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg','meta':f'YouTube • {published[:10]}' if published else 'YouTube'})
           Path('videos.json').write_text(json.dumps(videos,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          print(f'Updated {len(videos)} videos')
+          print(f'Updated {len(videos)} latest videos')
           PY
 
-      - name: Commit videos.json only
+      - name: Install permanent desktop Mobile Preview carousel drag fix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          marker='LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V1'
+          if marker not in s:
+              script='''<script>/* LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V1 */
+          (function(){
+            if(!new URLSearchParams(window.location.search).has('mobile-preview'))return;
+            function init(){
+              var games=document.querySelector('.games');
+              if(!games||games.dataset.dragFix==='v1')return;
+              games.dataset.dragFix='v1';
+              games.style.cursor='grab';
+              games.style.userSelect='none';
+              games.style.webkitUserSelect='none';
+              var dragging=false,moved=false,startX=0,startScroll=0;
+              games.addEventListener('mousedown',function(e){
+                if(e.button!==0)return;
+                dragging=true;moved=false;startX=e.clientX;startScroll=games.scrollLeft;
+                games.style.cursor='grabbing';
+              });
+              window.addEventListener('mousemove',function(e){
+                if(!dragging)return;
+                var dx=e.clientX-startX;
+                if(Math.abs(dx)>4)moved=true;
+                if(moved){games.scrollLeft=startScroll-dx;e.preventDefault();}
+              },true);
+              window.addEventListener('mouseup',function(){
+                dragging=false;games.style.cursor='grab';
+              },true);
+              games.addEventListener('dragstart',function(e){e.preventDefault();},true);
+              games.addEventListener('click',function(e){
+                if(moved){e.preventDefault();e.stopImmediatePropagation();moved=false;}
+              },true);
+            }
+            if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+          })();</script>'''
+              insert_at=s.rfind('</html>')
+              if insert_at<0: insert_at=len(s)
+              s=s[:insert_at]+script+s[insert_at:]
+              p.write_text(s,encoding='utf-8')
+              print('Permanent carousel drag fix installed.')
+          else:
+              print('Carousel drag fix already installed.')
+          PY
+
+      - name: Connect latest videos to homepage
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
+          if 'data-video-card' in s and 'loadLatestVideos' not in s:
+              needle="<script>document.addEventListener('dragstart',e=>e.preventDefault());"
+              if needle in s:
+                  script="""<script>async function loadLatestVideos(){try{const r=await fetch('videos.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('videos.json unavailable');const videos=await r.json();document.querySelectorAll('[data-video-card]').forEach((card,i)=>{const v=videos[i];if(!v){card.style.display='none';return;}card.style.display='';card.href=v.url;const t=card.querySelector('.video-title');const m=card.querySelector('.video-meta');const slot=card.querySelector('.image-slot');if(t)t.textContent=v.title;if(m)m.textContent=v.meta||'YouTube';if(slot){slot.style.backgroundImage=`url(\"${v.thumbnail}\")`;slot.style.backgroundSize='cover';slot.style.backgroundPosition='center';slot.style.backgroundRepeat='no-repeat';}});}catch(e){console.warn('Latest videos could not be loaded:',e)}}loadLatestVideos();document.addEventListener('dragstart',e=>e.preventDefault());</script>"""
+                  s=s.replace(needle,script,1)
+                  p.write_text(s,encoding='utf-8')
+                  print('Homepage video loader installed.')
+          else:
+              print('Homepage video loader already present or no video cards.')
+          PY
+
+      - name: Commit generated updates
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add videos.json
+          git add index.html videos.json
           if git diff --cached --quiet; then
-            echo 'No video changes.'
+            echo 'No generated changes.'
           else
-            git commit -m 'Update latest YouTube videos [skip ci]'
+            git commit -m 'Update YouTube content and preserve mobile carousel drag [skip ci]'
             git push
           fi
-
