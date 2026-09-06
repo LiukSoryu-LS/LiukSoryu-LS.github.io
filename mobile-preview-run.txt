@@ -1,1 +1,1 @@
-Run the permanent site updater once so the desktop mobile preview repair is applied.
+Trigger mobile preview carousel fix
