@@ -2,6 +2,9 @@ name: Repair Games cards and mobile preview
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/repair-games-and-mobile.yml'
   schedule:
     - cron: '*/5 * * * *'
 
@@ -51,7 +54,7 @@ jobs:
 
           p.write_text(s, encoding='utf-8')
 
-      - name: Commit site repair
+      - name: Commit site repair and remove workflow
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
@@ -62,9 +65,3 @@ jobs:
             git commit -m 'Restore Games playlists and mobile preview'
             git push
           fi
-
-      - name: Request GitHub Pages build
-        if: success()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api --method POST /repos/${{ github.repository }}/pages/builds --silent || true
