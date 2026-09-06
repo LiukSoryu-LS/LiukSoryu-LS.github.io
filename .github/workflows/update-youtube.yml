@@ -67,23 +67,20 @@ jobs:
           root=ET.fromstring(xml)
           channel=root.find('channel')
           items=channel.findall('item') if channel is not None else []
-          if not items:
-              raise RuntimeError('RSS feed returned no podcast episodes')
+          if not items: raise RuntimeError('RSS feed returned no podcast episodes')
           def node_text(node,default=''):
               return ''.join(node.itertext()).strip() if node is not None else default
           episodes=[]
           for item in items:
               title=html.unescape(node_text(item.find('title'),'Untitled episode'))
-              pub=item.findtext('pubDate','').strip()
-              link=item.findtext('link','').strip()
-              guid=item.findtext('guid','').strip()
+              pub=item.findtext('pubDate','').strip(); link=item.findtext('link','').strip(); guid=item.findtext('guid','').strip()
               episodes.append((title,pub,link,guid))
           label='<div class="episode-label">LATEST EPISODES</div>'
           start=text.find(label)
           if start<0: raise RuntimeError('LATEST EPISODES block not found')
-          end_match=re.search(r'</div>\s*<div><a class="listen"',text[start:])
+          end_match=re.search(r'<div><a class="listen"',text[start:])
           if not end_match: raise RuntimeError('Episode list end not found')
-          list_end=start+end_match.start()+len('</div>')
+          list_end=start+end_match.start()
           buttons=[]
           for i,(title,pub,link,guid) in enumerate(episodes,1):
               url=link or guid
@@ -102,8 +99,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('podcasts.html')
-          s=p.read_text(encoding='utf-8')
+          p=Path('podcasts.html'); s=p.read_text(encoding='utf-8')
           s=s.replace("const options={width:'100%',height:160,url:first.dataset.spotifyUrl};","const options={width:'100%',height:160,url:first.dataset.spotifyUrl||'https://open.spotify.com/show/3Fa75fsoqh2IGwPEzOxyUg'};",1)
           s=s.replace("EmbedController.loadEntity(episode.dataset.spotifyUrl);document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')","if(episode.dataset.spotifyUrl){EmbedController.loadEntity(episode.dataset.spotifyUrl)}else if(episode.dataset.episodeUrl){window.open(episode.dataset.episodeUrl,'_blank','noopener')}document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')",1)
           p.write_text(s,encoding='utf-8')
@@ -116,19 +112,15 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
           podcasts=r'<a class="card guide" href="[^"]*">\s*<div class="guide-overlay">\s*<div class="guide-icon">.*?</div>\s*<h3>PODCASTS</h3>.*?</div>\s*</a>'
           podcasts_replacement='<a class="card guide" href="podcasts.html"><div class="guide-overlay"><div class="guide-icon"><img src="Lore.png" alt="Lore podcast artwork" style="width:72px;height:72px;object-fit:contain;display:block"></div><h3>PODCASTS</h3><p>Lore • Games • Discussions</p></div></a>'
           s,n=re.subn(podcasts,podcasts_replacement,s,count=1,flags=re.S)
           if n!=1: raise SystemExit('Could not safely locate PODCASTS card')
-
           stream=r'<a class="card guide" href="[^"]*">\s*<div class="guide-overlay">\s*<div class="guide-icon">.*?</div>\s*<h3>STREAM SUGGESTIONS</h3>.*?</div>\s*</a>'
           stream_replacement='<a class="card guide" href="stream-suggestions.html"><div class="guide-overlay"><div class="guide-icon"><img src="bobas friends.png" alt="Boba\'s Friends artwork" style="width:72px;height:72px;object-fit:contain;display:block"></div><h3>STREAM SUGGESTIONS</h3><p>Your Ideas • Live Discussions</p></div></a>'
           s,n=re.subn(stream,stream_replacement,s,count=1,flags=re.S)
           if n!=1: raise SystemExit('Could not safely locate STREAM SUGGESTIONS card')
-
           p.write_text(s,encoding='utf-8')
           print('Homepage special cards preserved and updated.')
           PY
