@@ -25,27 +25,32 @@ jobs:
           python3 - <<'PY'
           import json,re,urllib.request,xml.etree.ElementTree as ET
           from pathlib import Path
-          req=urllib.request.Request('https://www.youtube.com/@liuksoryu/videos',headers={'User-Agent':'Mozilla/5.0'})
-          html=urllib.request.urlopen(req,timeout=30).read().decode('utf-8','ignore')
-          channel_id=None
-          for pattern in [r'"channelId":"(UC[^"]+)"',r'"externalId":"(UC[^"]+)"',r'channelId=(UC[A-Za-z0-9_-]+)']:
-              m=re.search(pattern,html)
-              if m:
-                  channel_id=m.group(1); break
-          if not channel_id: raise SystemExit('Could not resolve LIUKSORYU channel ID')
-          xml=urllib.request.urlopen(f'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}',timeout=30).read()
-          root=ET.fromstring(xml)
-          ns={'yt':'http://www.youtube.com/xml/schemas/2015','atom':'http://www.w3.org/2005/Atom'}
-          videos=[]
-          for entry in root.findall('atom:entry',ns)[:5]:
-              vid=entry.findtext('yt:videoId',default='',namespaces=ns)
-              title=entry.findtext('atom:title',default='Untitled',namespaces=ns)
-              published=entry.findtext('atom:published',default='',namespaces=ns)
-              videos.append({'title':title,'url':f'https://www.youtube.com/watch?v={vid}','thumbnail':f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg','meta':f'YouTube • {published[:10]}' if published else 'YouTube'})
-          Path('videos.json').write_text(json.dumps(videos,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          try:
+              req=urllib.request.Request('https://www.youtube.com/@liuksoryu/videos',headers={'User-Agent':'Mozilla/5.0'})
+              html=urllib.request.urlopen(req,timeout=30).read().decode('utf-8','ignore')
+              channel_id=None
+              for pattern in [r'"channelId":"(UC[^"]+)"',r'"externalId":"(UC[^"]+)"',r'channelId=(UC[A-Za-z0-9_-]+)']:
+                  m=re.search(pattern,html)
+                  if m:
+                      channel_id=m.group(1); break
+              if not channel_id:
+                  raise RuntimeError('Could not resolve LIUKSORYU channel ID')
+              xml=urllib.request.urlopen(f'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}',timeout=30).read()
+              root=ET.fromstring(xml)
+              ns={'yt':'http://www.youtube.com/xml/schemas/2015','atom':'http://www.w3.org/2005/Atom'}
+              videos=[]
+              for entry in root.findall('atom:entry',ns)[:5]:
+                  vid=entry.findtext('yt:videoId',default='',namespaces=ns)
+                  title=entry.findtext('atom:title',default='Untitled',namespaces=ns)
+                  published=entry.findtext('atom:published',default='',namespaces=ns)
+                  videos.append({'title':title,'url':f'https://www.youtube.com/watch?v={vid}','thumbnail':f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg','meta':f'YouTube • {published[:10]}' if published else 'YouTube'})
+              Path('videos.json').write_text(json.dumps(videos,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+              print(f'Updated videos.json with {len(videos)} uploads.')
+          except Exception as exc:
+              print(f'::warning::YouTube fetch skipped; keeping existing videos.json: {exc}')
           PY
 
-      - name: Link podcast guide to its dedicated page
+      - name: Ensure Podcasts guide links to dedicated page
         shell: bash
         run: |
           python3 - <<'PY'
@@ -57,57 +62,24 @@ jobs:
           pos=s.find(marker)
           if pos < 0:
               raise SystemExit('Could not find PODCASTS card')
-          start=max(0,s.rfind('<a ',0,pos-1))
-          if start < 0:
-              raise SystemExit('Could not find Podcasts card link')
+          start=s.rfind('<a ',0,pos)
           end=s.find('</a>',pos)
-          if end < 0:
-              raise SystemExit('Could not find end of Podcasts card')
+          if start < 0 or end < 0:
+              raise SystemExit('Could not isolate PODCASTS card')
           card=s[start:end+4]
-          card2=re.sub(r'(<a[^>]+href=")[^"]*(")',r'\g<1>podcasts.html\g<2>',card,count=1)
-          if card2==card:
-              raise SystemExit('Could not replace Podcasts card href')
-          s=s[:start]+card2+s[end+4:]
-          p.write_text(s,encoding='utf-8')
-          print('Linked the Podcasts guide card to podcasts.html')
+          href=re.search(r'(<a\b[^>]*\bhref=")[^"]*(")',card)
+          if not href:
+              raise SystemExit('PODCASTS card has no href')
+          replacement=re.sub(r'(<a\b[^>]*\bhref=")[^"]*(")',r'\1podcasts.html\2',card,count=1)
+          if replacement==card:
+              print('PODCASTS card already points to podcasts.html')
+          else:
+              s=s[:start]+replacement+s[end+4:]
+              p.write_text(s,encoding='utf-8')
+              print('PODCASTS card now points to podcasts.html')
           PY
 
-      - name: Clean malformed legacy style wrappers and fix mobile layout
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          s=re.sub(r'<style>/\* LIUKSORYU social button interaction V1 \*/.*?(?=<style>/\* LIUKSORYU MOBILE HEADER \+ FOOTER FINAL \*/)', '</style>', s, flags=re.S)
-          s=re.sub(r'<style>/\* LIUKSORYU MOBILE HEADER \+ FOOTER FINAL \*/.*?</style>', '', s, flags=re.S)
-          s=re.sub(r'<style>/\* LIUKSORYU MOBILE FOOTER(?: SPACING V[0-9]+| FINAL SPACING| FINAL) \*/.*?</style>', '', s, flags=re.S)
-          patch='''<style>/* LIUKSORYU MOBILE LAYOUT — CLEAN */
-          @media (max-width:600px){
-            .topbar .socials{display:flex!important;flex:0 0 auto!important;width:auto!important;height:44px!important;min-height:44px!important;max-height:44px!important;gap:10px!important;align-items:center!important}
-            .topbar .socials .social{box-sizing:border-box!important;display:grid!important;place-items:center!important;width:44px!important;height:44px!important;min-width:44px!important;max-width:44px!important;min-height:44px!important;max-height:44px!important;flex:0 0 44px!important;align-self:center!important;padding:0!important;margin:0!important;line-height:0!important;overflow:hidden!important;aspect-ratio:1 / 1!important}
-            .topbar .socials .social svg{width:20px!important;height:20px!important;min-width:20px!important;max-width:20px!important;min-height:20px!important;max-height:20px!important;display:block!important;flex:none!important}
-            .footer{padding:48px 0 40px!important}
-            .footer-inner{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:40px!important}
-            .footer-brand{width:100%!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:22px!important}
-            .footer-brand>img{width:150px!important;height:58px!important;display:block!important;object-fit:contain!important;margin:0!important}
-            .footer-copy{margin:0!important;line-height:1.9!important}
-            .footer-right{width:100%!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:36px!important;margin:0!important}
-            .footer-socials{display:flex!important;align-items:center!important;flex-wrap:nowrap!important;gap:14px!important;margin:0!important;padding:0!important}
-            .footer-social{box-sizing:border-box!important;width:46px!important;height:46px!important;min-width:46px!important;max-width:46px!important;min-height:46px!important;max-height:46px!important;flex:0 0 46px!important;aspect-ratio:1 / 1!important;display:grid!important;place-items:center!important;margin:0!important;padding:0!important;overflow:hidden!important;line-height:0!important}
-            .footer-social svg{width:20px!important;height:20px!important;min-width:20px!important;max-width:20px!important;min-height:20px!important;max-height:20px!important;display:block!important;flex:none!important}
-            .footer-links{display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:22px!important;margin:0!important;padding:0!important;line-height:1.9!important}
-          }
-          </style>'''
-          i=s.find('</head>')
-          if i<0: raise SystemExit('Could not find </head> in index.html')
-          s=s[:i]+patch+s[i:]
-          p.write_text(s,encoding='utf-8')
-          print('Cleaned legacy style wrappers and installed one isolated mobile layout patch.')
-          PY
-
-      - name: Commit
+      - name: Commit generated updates
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
@@ -116,6 +88,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No changes.'
           else
-            git commit -m 'Link podcast guide to dedicated page [skip ci]'
+            git commit -m 'Update YouTube data and preserve podcast link [skip ci]'
             git push
           fi
