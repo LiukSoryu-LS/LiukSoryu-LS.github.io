@@ -1,0 +1,46 @@
+name: One-time guide cards restoration
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  restore:
+    if: github.event.head_commit.message != 'Restore guide and stream suggestion cards'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore guide cards without touching mobile preview
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = 'LIUKSORYU-GUIDE-CARDS-RESTORED'
+          if marker not in s:
+              css = '<style id="guide-cards-visibility">/* LIUKSORYU-GUIDE-CARDS-RESTORED */ #guides .guides{display:grid!important} #guides .guide{display:flex!important;visibility:visible!important}</style>'
+              s = s.replace('</head>', css + '</head>', 1)
+          # If the guide section/cards are missing, restore the complete four-card section.
+          if 'href="character-guides.html"' not in s or 'href="stream-suggestions.html"' not in s:
+              section = '''<section class="section" id="guides"><div class="shell"><div class="section-title"><span class="rule"></span><h2>GUIDES</h2><span class="rule"></span></div><div class="section-sub">BUILDS • LORE • PODCASTS • DISCUSSIONS</div><div class="guides"><a class="card guide" href="character-guides.html"><div class="guide-overlay"><div class="guide-icon">⚔</div><h3>CHARACTER GUIDES</h3><p>Builds • Kits • Teams</p></div></a><a class="card guide" href="#"><div class="guide-overlay"><div class="guide-icon">◉</div><h3>LORE &amp; THEORY</h3><p>Stories • Analysis • Speculation</p></div></a><a class="card guide" href="podcasts.html"><div class="guide-overlay"><div class="guide-icon"><img src="Lore.png" alt="Lore podcast artwork" style="width:72px;height:72px;object-fit:contain;display:block"></div><h3>PODCASTS</h3><p>Lore • Games • Discussions</p></div></a><a class="card guide" href="stream-suggestions.html"><div class="guide-overlay"><div class="guide-icon"><img src="bobas friends.png" alt="Boba's Friends artwork" style="width:72px;height:72px;object-fit:contain;display:block"></div><h3>STREAM SUGGESTIONS</h3><p>Your Ideas • Live Discussions</p></div></a></div></div></section>'''
+              pattern = r'<section class="section" id="guides">.*?</section>(?=<section class="section" id="community">)'
+              if re.search(pattern, s, flags=re.S):
+                  s = re.sub(pattern, section, s, count=1, flags=re.S)
+              else:
+                  anchor = '<section class="section" id="community">'
+                  if anchor not in s:
+                      raise SystemExit('Could not locate community section')
+                  s = s.replace(anchor, section + anchor, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit restoration and remove workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git rm .github/workflows/restore-guides-cards-once.yml
+          git commit -m 'Restore guide and stream suggestion cards'
+          git push
