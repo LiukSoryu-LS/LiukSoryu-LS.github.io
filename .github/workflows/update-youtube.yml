@@ -72,8 +72,7 @@ jobs:
               return ''.join(node.itertext()).strip() if node is not None else default
           episodes=[]
           for i,item in enumerate(items,1):
-              title=cdata_text(item.find('title'),'Untitled episode')
-              title=html.unescape(title)
+              title=html.unescape(cdata_text(item.find('title'),'Untitled episode'))
               pub=item.findtext('pubDate','').strip()
               link=item.findtext('link','').strip()
               guid=item.findtext('guid','').strip()
@@ -81,7 +80,6 @@ jobs:
               desc=re.sub(r'<[^>]+>',' ',desc)
               desc=' '.join(html.unescape(desc).split())
               episodes.append((i,title,pub,link,guid,desc))
-          # Generate only the episode-list block, preserving the rest of the page verbatim.
           label='<div class="episode-label">LATEST EPISODES</div>'
           start=text.find(label)
           if start < 0:
@@ -96,70 +94,40 @@ jobs:
               safe_title=html.escape(title,quote=False)
               date_text=html.escape(pub[:16].replace('T',' '),quote=False) if pub else ''
               hint=f'{date_text} • Play this episode in the player above' if date_text else 'Play this episode in the player above'
-              buttons.append(f'<button class="episode{\' active\' if i==1 else \"\"}" type="button" data-spotify-url="{html.escape(link,quote=True)}"><span class="episode-number">{i}</span><span class="episode-text"><span class="episode-name">{safe_title}</span><span class="episode-hint">{html.escape(hint,quote=False)}</span></span></button>')
+              active=' active' if i==1 else ''
+              buttons.append(f'<button class="episode{active}" type="button" data-spotify-url="{html.escape(link,quote=True)}"><span class="episode-number">{i}</span><span class="episode-text"><span class="episode-name">{safe_title}</span><span class="episode-hint">{html.escape(hint,quote=False)}</span></span></button>')
           new_block=label+'\n'+'\n'.join(buttons)+'\n'
           target.write_text(prefix+new_block+suffix,encoding='utf-8')
           print(f'Synced {len(episodes)} podcast episodes from RSS.')
           PY
 
-      - name: Ensure Podcasts guide links to dedicated page
+      - name: Verify homepage special-card links and artwork
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          marker='<h3>PODCASTS</h3>'
-          pos=s.find(marker)
-          if pos < 0:
-              raise SystemExit('Could not find PODCASTS card')
-          start=s.rfind('<a ',0,pos)
-          end=s.find('</a>',pos)
-          if start < 0 or end < 0:
-              raise SystemExit('Could not isolate PODCASTS card')
-          card=s[start:end+4]
-          href=re.search(r'(<a\b[^>]*\bhref=")[^"]*(")',card)
-          if not href:
-              raise SystemExit('PODCASTS card has no href')
-          replacement=re.sub(r'(<a\b[^>]*\bhref=")[^"]*(")',r'\1podcasts.html\2',card,count=1)
-          if replacement==card:
-              print('PODCASTS card already points to podcasts.html')
-          else:
-              s=s[:start]+replacement+s[end+4:]
-              p.write_text(s,encoding='utf-8')
-              print('PODCASTS card now points to podcasts.html')
+          required=[
+            ('podcasts.html','Podcasts card target'),
+            ('Lore.png','Podcast artwork'),
+            ('stream-suggestions.html','Stream Suggestions page link'),
+            ('bobas friends.png','Boba artwork')
+          ]
+          for needle,label in required:
+              if needle not in s:
+                  raise SystemExit(f'Missing {label}: {needle}')
+          print('Homepage special-card links/artwork verified.')
           PY
 
-      - name: Ensure Podcasts card uses Lore artwork
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          pattern=r'(<div class="guide-icon">)◫(</div><h3>PODCASTS</h3>)'
-          replacement=r'\1<img src="Lore.png" alt="Lore podcast artwork" style="width:72px;height:72px;object-fit:contain;display:block">\2'
-          s2=re.sub(pattern,replacement,s,count=1)
-          if s2==s:
-              if 'src="Lore.png" alt="Lore podcast artwork"' in s:
-                  print('PODCASTS card already uses Lore artwork')
-              else:
-                  raise SystemExit('Could not find PODCASTS card icon')
-          else:
-              p.write_text(s2,encoding='utf-8')
-              print('PODCASTS card now uses Lore.png')
-          PY
-
-      - name: Commit generated updates
+      - name: Commit generated content only
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add videos.json index.html podcasts.html
+          git add videos.json podcasts.html
           if git diff --cached --quiet; then
-            echo 'No changes.'
+            echo 'No generated-content changes.'
           else
             git commit -m 'Sync YouTube and podcast content [skip ci]'
             git push
