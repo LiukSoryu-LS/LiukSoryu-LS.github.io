@@ -1,0 +1,70 @@
+name: Repair Games cards and mobile preview
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Repair Games and mobile preview
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          games = [
+              ('Wuthering Waves Lore — Podcast','https://youtube.com/playlist?list=PLSjzzcfb3AwA','buaKyKTyHcs'),
+              ('Genshin Impact','https://youtube.com/playlist?list=PL3gT64ipuP2Q4oL7gny6-uQTKGX6vrA9h','e9zxQj__UNQ'),
+              ('Zenless Zone Zero (ZZZ)','https://youtube.com/playlist?list=PL3gT64ipuP2TJ-7CqMaOkUabLrfCJ112_','bbF8ns-IEn8'),
+              ('Wuthering Waves','https://youtube.com/playlist?list=PLBU_IiYBDS9c','buaKyKTyHcs'),
+              ('Reverse: 1999','https://youtube.com/playlist?list=PL3gT64ipuP2S-_KTvJ0oJDdQIDpuDGAwq','KXiaRsn7OdE'),
+              ('NTE','https://youtube.com/playlist?list=PLRiUfBOoP20M','DL7o0Tpr-g8'),
+              ('Chaos Zero Nightmare','https://youtube.com/playlist?list=PLHqebmkOvcn4','oruzenZEnco'),
+              ('Arknights: Endfield','https://youtube.com/playlist?list=PLNf6kMa6gAa8','7Zz461qlnbs'),
+              ('Honkai Star Rail','https://youtube.com/playlist?list=PLH_i2bw4m1HI','3K3PF7XmgOU'),
+          ]
+
+          cards = []
+          for name, url, vid in games:
+              cards.append(f'<a class="card game-card" href="{url}" target="_blank" rel="noopener"><div class="image-slot has-image"><img src="https://i.ytimg.com/vi/{vid}/hqdefault.jpg" alt="{name}" loading="lazy"></div><div class="game-name">{name}</div></a>')
+          cards.append('<a class="card game-card" href="#"><div class="image-slot has-image"><img src="profilediscordcommunity.png" alt="LIUKSORYU community" loading="lazy"></div><div class="game-name">And More To Come…</div></a>')
+          games_html = '<div class="games">' + ''.join(cards) + '</div>'
+
+          s = re.sub(r'<div class="games">.*?</div></div></section>', games_html + '</div></div></section>', s, count=1, flags=re.S)
+
+          if 'id="mobilePreviewToggle"' not in s:
+              controls = '''<div id="mobilePreviewOverlay" aria-hidden="true"><div id="mobilePreviewDevice"><div id="mobilePreviewLabel">MOBILE PREVIEW</div><iframe id="mobilePreviewFrame" title="LIUKSORYU mobile preview"></iframe></div></div><button id="mobilePreviewToggle" type="button" aria-label="Open mobile preview" title="Open mobile preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10 5h4M11 18.5h2"/></svg></button><script>function toggleMobilePreview(){const o=document.getElementById('mobilePreviewOverlay');const f=document.getElementById('mobilePreviewFrame');if(!o||!f)return;const open=!document.body.classList.contains('mobile-preview-open');document.body.classList.toggle('mobile-preview-open',open);o.setAttribute('aria-hidden',open?'false':'true');if(open&&!f.src)f.src=location.href.split('#')[0].split('?')[0]+'?mobile-preview=1';}document.getElementById('mobilePreviewToggle').addEventListener('click',toggleMobilePreview);document.getElementById('mobilePreviewOverlay').addEventListener('click',function(e){if(e.target===this)toggleMobilePreview();});document.addEventListener('keydown',function(e){if(e.key==='Escape'&&document.body.classList.contains('mobile-preview-open'))toggleMobilePreview();});</script>'''
+              s = s.replace('</body>', controls + '</body>', 1)
+
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit site repair
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -f .github/workflows/repair-games-and-mobile.yml
+          git add index.html .github/workflows/repair-games-and-mobile.yml
+          if ! git diff --cached --quiet; then
+            git commit -m 'Restore Games playlists and mobile preview'
+            git push
+          fi
+
+      - name: Request GitHub Pages build
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api --method POST /repos/${{ github.repository }}/pages/builds --silent || true
