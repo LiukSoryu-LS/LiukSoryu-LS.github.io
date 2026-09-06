@@ -12,8 +12,11 @@ on:
 permissions:
   contents: write
 
+env:
+  PODCAST_RSS: https://anchor.fm/s/116b74cd0/podcast/rss
+
 jobs:
-  update-videos:
+  update-site-content:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,7 +32,7 @@ jobs:
               req=urllib.request.Request('https://www.youtube.com/@liuksoryu/videos',headers={'User-Agent':'Mozilla/5.0'})
               html=urllib.request.urlopen(req,timeout=30).read().decode('utf-8','ignore')
               channel_id=None
-              for pattern in [r'"channelId":"(UC[^"]+)"',r'"externalId":"(UC[^"]+)"',r'channelId=(UC[A-Za-z0-9_-]+)']:
+              for pattern in [r'\"channelId\":\"(UC[^\"]+)\"',r'\"externalId\":\"(UC[^\"]+)\"',r'channelId=(UC[A-Za-z0-9_-]+)']:
                   m=re.search(pattern,html)
                   if m:
                       channel_id=m.group(1); break
@@ -48,6 +51,55 @@ jobs:
               print(f'Updated videos.json with {len(videos)} uploads.')
           except Exception as exc:
               print(f'::warning::YouTube fetch skipped; keeping existing videos.json: {exc}')
+          PY
+
+      - name: Sync all podcast episodes from RSS
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import html,re,urllib.request,xml.etree.ElementTree as ET
+          from pathlib import Path
+          rss_url='https://anchor.fm/s/116b74cd0/podcast/rss'
+          target=Path('podcasts.html')
+          text=target.read_text(encoding='utf-8')
+          req=urllib.request.Request(rss_url,headers={'User-Agent':'Mozilla/5.0'})
+          xml=urllib.request.urlopen(req,timeout=30).read()
+          root=ET.fromstring(xml)
+          items=root.find('channel').findall('item')
+          if not items:
+              raise RuntimeError('RSS feed returned no podcast episodes')
+          def cdata_text(node, default=''):
+              return ''.join(node.itertext()).strip() if node is not None else default
+          episodes=[]
+          for i,item in enumerate(items,1):
+              title=cdata_text(item.find('title'),'Untitled episode')
+              title=html.unescape(title)
+              pub=item.findtext('pubDate','').strip()
+              link=item.findtext('link','').strip()
+              guid=item.findtext('guid','').strip()
+              desc=cdata_text(item.find('description'),'')
+              desc=re.sub(r'<[^>]+>',' ',desc)
+              desc=' '.join(html.unescape(desc).split())
+              episodes.append((i,title,pub,link,guid,desc))
+          # Generate only the episode-list block, preserving the rest of the page verbatim.
+          label='<div class="episode-label">LATEST EPISODES</div>'
+          start=text.find(label)
+          if start < 0:
+              raise RuntimeError('Could not find LATEST EPISODES block in podcasts.html')
+          list_end=text.find('</div>\n<div><a class="listen"',start)
+          if list_end < 0:
+              raise RuntimeError('Could not find end of episode list in podcasts.html')
+          prefix=text[:start]
+          suffix=text[list_end:]
+          buttons=[]
+          for i,title,pub,link,guid,desc in episodes:
+              safe_title=html.escape(title,quote=False)
+              date_text=html.escape(pub[:16].replace('T',' '),quote=False) if pub else ''
+              hint=f'{date_text} • Play this episode in the player above' if date_text else 'Play this episode in the player above'
+              buttons.append(f'<button class="episode{\' active\' if i==1 else \"\"}" type="button" data-spotify-url="{html.escape(link,quote=True)}"><span class="episode-number">{i}</span><span class="episode-text"><span class="episode-name">{safe_title}</span><span class="episode-hint">{html.escape(hint,quote=False)}</span></span></button>')
+          new_block=label+'\n'+'\n'.join(buttons)+'\n'
+          target.write_text(prefix+new_block+suffix,encoding='utf-8')
+          print(f'Synced {len(episodes)} podcast episodes from RSS.')
           PY
 
       - name: Ensure Podcasts guide links to dedicated page
@@ -105,10 +157,10 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add videos.json index.html
+          git add videos.json index.html podcasts.html
           if git diff --cached --quiet; then
             echo 'No changes.'
           else
-            git commit -m 'Update YouTube data and preserve podcast card [skip ci]'
+            git commit -m 'Sync YouTube and podcast content [skip ci]'
             git push
           fi
