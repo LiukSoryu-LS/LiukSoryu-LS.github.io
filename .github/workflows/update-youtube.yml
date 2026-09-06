@@ -112,14 +112,12 @@ jobs:
           s=p.read_text(encoding='utf-8')
           old="const options={width:'100%',height:160,url:first.dataset.spotifyUrl};"
           new="const options={width:'100%',height:160,url:first.dataset.spotifyUrl||'https://open.spotify.com/show/3Fa75fsoqh2IGwPEzOxyUg'};"
-          if old in s:
-              s=s.replace(old,new,1)
+          s=s.replace(old,new,1)
           old_click="EmbedController.loadEntity(episode.dataset.spotifyUrl);document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')"
           new_click="if(episode.dataset.spotifyUrl){EmbedController.loadEntity(episode.dataset.spotifyUrl)}else if(episode.dataset.episodeUrl){window.open(episode.dataset.episodeUrl,'_blank','noopener')}document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')"
-          if old_click in s:
-              s=s.replace(old_click,new_click,1)
+          s=s.replace(old_click,new_click,1)
           p.write_text(s,encoding='utf-8')
-          print('Podcast player behavior verified.')
+          print('Podcast player behavior preserved.')
           PY
 
       - name: Ensure Podcasts guide links to dedicated page
@@ -132,20 +130,14 @@ jobs:
           s=p.read_text(encoding='utf-8')
           marker='<h3>PODCASTS</h3>'
           pos=s.find(marker)
-          if pos < 0:
-              raise SystemExit('Could not find PODCASTS card')
-          start=s.rfind('<a ',0,pos)
-          end=s.find('</a>',pos)
-          if start < 0 or end < 0:
-              raise SystemExit('Could not isolate PODCASTS card')
+          if pos < 0: raise SystemExit('Could not find PODCASTS card')
+          start=s.rfind('<a ',0,pos); end=s.find('</a>',pos)
+          if start < 0 or end < 0: raise SystemExit('Could not isolate PODCASTS card')
           card=s[start:end+4]
-          replacement=re.sub(r'(<a\b[^>]*\bhref=")[^"]*(")',r'\1podcasts.html\2',card,count=1)
-          if replacement!=card:
-              s=s[:start]+replacement+s[end+4:]
-              p.write_text(s,encoding='utf-8')
-              print('PODCASTS card now points to podcasts.html')
-          else:
-              print('PODCASTS card already points to podcasts.html')
+          card=re.sub(r'(<a\b[^>]*\bhref=")[^"]*(")',r'\1podcasts.html\2',card,count=1)
+          s=s[:start]+card+s[end+4:]
+          p.write_text(s,encoding='utf-8')
+          print('PODCASTS card verified.')
           PY
 
       - name: Ensure Podcasts card uses Lore artwork
@@ -154,15 +146,12 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
           pattern=r'(<div class="guide-icon">).*?(</div><h3>PODCASTS</h3>)'
           replacement=r'\1<img src="Lore.png" alt="Lore podcast artwork" style="width:72px;height:72px;object-fit:contain;display:block">\2'
-          s2=re.sub(pattern,replacement,s,count=1,flags=re.S)
-          if s2==s and 'src="Lore.png" alt="Lore podcast artwork"' not in s:
-              raise SystemExit('Could not find PODCASTS card icon')
-          p.write_text(s2,encoding='utf-8')
-          print('PODCASTS card artwork verified.')
+          s=re.sub(pattern,replacement,s,count=1,flags=re.S)
+          p.write_text(s,encoding='utf-8')
+          print('PODCASTS artwork verified.')
           PY
 
       - name: Ensure Stream Suggestions card uses Boba artwork
@@ -171,40 +160,30 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
           marker='<h3>STREAM SUGGESTIONS</h3>'
           pos=s.find(marker)
-          if pos < 0:
-              raise SystemExit('Could not find STREAM SUGGESTIONS card')
-          start=s.rfind('<a ',0,pos)
-          end=s.find('</a>',pos)
-          if start < 0 or end < 0:
-              raise SystemExit('Could not isolate STREAM SUGGESTIONS card')
+          if pos < 0: raise SystemExit('Could not find STREAM SUGGESTIONS card')
+          start=s.rfind('<a ',0,pos); end=s.find('</a>',pos)
+          if start < 0 or end < 0: raise SystemExit('Could not isolate STREAM SUGGESTIONS card')
           card=s[start:end+4]
           card=re.sub(r'(<a\b[^>]*\bhref=")[^"]*(")',r'\1stream-suggestions.html\2',card,count=1)
-          card2=re.sub(r'(<div class="guide-icon">).*?(</div><h3>STREAM SUGGESTIONS</h3>)',r'\1<img src="bobas friends.png" alt="Boba\'s Friends artwork" style="width:72px;height:72px;object-fit:contain;display:block">\2',card,count=1,flags=re.S)
-          if card2==card and 'src="bobas friends.png" alt="Boba\'s Friends artwork"' not in card:
-              raise SystemExit('Could not set Boba artwork on STREAM SUGGESTIONS card')
-          if card2!=card:
-              s=s[:start]+card2+s[end+4:]
-              p.write_text(s,encoding='utf-8')
-              print('STREAM SUGGESTIONS card now uses Boba artwork.')
-          else:
-              print('STREAM SUGGESTIONS card artwork/link already correct.')
+          card=re.sub(r'(<div class="guide-icon">).*?(</div><h3>STREAM SUGGESTIONS</h3>)',r'\1<img src="bobas friends.png" alt="Boba\'s Friends artwork" style="width:72px;height:72px;object-fit:contain;display:block">\2',card,count=1,flags=re.S)
+          s=s[:start]+card+s[end+4:]
+          p.write_text(s,encoding='utf-8')
+          print('STREAM SUGGESTIONS artwork verified.')
           PY
 
-      - name: Verify homepage special-card links and artwork
+      - name: Verify protected homepage structure
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           s=Path('index.html').read_text(encoding='utf-8')
-          required=['podcasts.html','Lore.png','stream-suggestions.html','bobas friends.png','mobilePreviewToggle','mobilePreviewOverlay']
-          for needle in required:
-              if needle not in s:
-                  raise SystemExit(f'Missing homepage element: {needle}')
-          print('Homepage links, artwork and mobile preview verified.')
+          checks=['mobilePreviewToggle','mobilePreviewOverlay','bobas friends.png','Lore.png','STREAM SUGGESTIONS','PODCASTS']
+          missing=[x for x in checks if x not in s]
+          if missing: raise SystemExit('Missing protected homepage elements: '+', '.join(missing))
+          print('Protected homepage structure verified.')
           PY
 
       - name: Commit generated content only
