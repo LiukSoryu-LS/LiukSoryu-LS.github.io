@@ -1,0 +1,41 @@
+name: One-time homepage cleanup
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    if: github.event.head_commit.message != 'Clean homepage guide cards and workflow debris'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove Lore card and redundant preview CSS
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          pattern=r'<a class="card guide" href="#"><div class="guide-overlay"><div class="guide-icon">◉</div><h3>LORE &amp; THEORY</h3><p>Stories • Analysis • Speculation</p></div></a>'
+          s,n=re.subn(pattern,'',s,count=1)
+          if n != 1:
+              raise SystemExit('Lore & Theory card not found; refusing to alter homepage')
+          # Keep the restored Character Guides, Podcasts and Stream Suggestions cards intact.
+          # Remove the obsolete duplicated desktop-preview CSS block(s) from earlier fixes.
+          s=re.sub(r'\n/\* LIUKSORYU desktop mobile preview FINAL \*/.*?(?=<style>\/\* LIUKSORYU MOBILE LAYOUT — CLEAN \*\/)', '\n', s, count=1, flags=re.S)
+          # Remove the older duplicate desktop-preview blocks if still present before the clean fix.
+          s=re.sub(r'\n/\* LIUKSORYU desktop mobile preview \*/.*?(?=/\* LIUKSORYU desktop mobile preview \*/|<\/style>)', '\n', s, flags=re.S)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Remove temporary workflow and accidental maintenance marker
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git rm -f .github/workflows/cleanup-homepage-once.yml
+          git rm -f _maintenance/guide-card-cleanup.md || true
+          git commit -m 'Clean homepage guide cards and workflow debris'
+          git push
