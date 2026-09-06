@@ -41,45 +41,45 @@ jobs:
           Path('videos.json').write_text(json.dumps(videos,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
 
-      - name: Fix mobile footer spacing only
+      - name: Patch mobile footer spacing in place
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          marker='/* LIUKSORYU MOBILE FOOTER SPACING V1 */'
-          if marker not in s:
-              css='''<style>/* LIUKSORYU MOBILE FOOTER SPACING V1 */
+          import re
+          p=Path('index.html'); s=p.read_text(encoding='utf-8')
+          marker='/* LIUKSORYU MOBILE FOOTER SPACING V2 */'
+          # Remove prior versions of this footer-only patch, but leave all other homepage CSS untouched.
+          s=re.sub(r'<style>/\* LIUKSORYU MOBILE FOOTER SPACING V[0-9]+ \*/.*?</style>','',s,flags=re.S)
+          patch='''<style>/* LIUKSORYU MOBILE FOOTER SPACING V2 */
           @media(max-width:600px){
-            .footer{padding-top:34px!important;padding-bottom:30px!important}
-            .footer-inner{gap:22px!important}
-            .footer-brand{gap:14px!important;width:100%!important}
-            .footer-brand>img{width:150px!important;height:58px!important;object-fit:contain!important;margin-bottom:2px!important;display:block!important}
-            .footer-copy{font-size:11px!important;line-height:1.8!important}
-            .footer-right{width:100%!important;gap:20px!important;align-items:flex-start!important}
-            .footer-socials{gap:10px!important;margin-top:2px!important;margin-bottom:4px!important}
-            .footer-social{width:46px!important;height:46px!important}
-            .footer-links{gap:18px!important;line-height:1.8!important}
+            .footer{padding-top:42px!important;padding-bottom:34px!important}
+            .footer-inner{gap:28px!important}
+            .footer-brand{width:100%!important;gap:18px!important}
+            .footer-brand>img{width:150px!important;height:58px!important;object-fit:contain!important;display:block!important;margin:0 0 2px 0!important}
+            .footer-copy{font-size:11px!important;line-height:1.85!important;margin:0!important}
+            .footer-right{width:100%!important;gap:24px!important;align-items:flex-start!important}
+            .footer-socials{gap:12px!important;margin:0!important;padding:0!important}
+            .footer-social{width:46px!important;height:46px!important;flex:0 0 46px!important}
+            .footer-links{gap:20px!important;line-height:1.9!important;margin:0!important;padding:0!important}
           }
           </style>'''
-              i=s.find('</style>')
-              if i<0: raise SystemExit('Could not find homepage style block')
-              s=s[:i]+css+s[i:]
-              p.write_text(s,encoding='utf-8')
-              print('Installed mobile footer spacing V1.')
-          else:
-              print('Mobile footer spacing V1 already present.')
+          # Put the patch immediately before </head>; it is isolated to mobile footer spacing.
+          i=s.find('</head>')
+          if i<0: raise SystemExit('Could not find </head> in index.html')
+          s=s[:i]+patch+s[i:]
+          p.write_text(s,encoding='utf-8')
+          print('Mobile footer spacing V2 installed.')
           PY
 
-      - name: Commit
+      - name: Commit generated data and mobile spacing
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add videos.json index.html
           if git diff --cached --quiet; then
-            echo 'No changes to commit.'
+            echo 'No changes.'
           else
             git commit -m 'Improve mobile footer spacing [skip ci]'
             git push
