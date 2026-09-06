@@ -95,10 +95,31 @@ jobs:
               hint=f'{date_text} • Play this episode in the player above' if date_text else 'Play this episode in the player above'
               active=' active' if i==1 else ''
               episode_url=link or guid
-              buttons.append(f'<button class="episode{active}" type="button" data-episode-url="{html.escape(episode_url,quote=True)}"><span class="episode-number">{i}</span><span class="episode-text"><span class="episode-name">{safe_title}</span><span class="episode-hint">{html.escape(hint,quote=False)}</span></span></button>')
+              spotify_attr=f' data-spotify-url="{html.escape(episode_url,quote=True)}"' if 'open.spotify.com/episode/' in episode_url else ''
+              external_attr=f' data-episode-url="{html.escape(episode_url,quote=True)}"' if episode_url else ''
+              buttons.append(f'<button class="episode{active}" type="button"{spotify_attr}{external_attr}><span class="episode-number">{i}</span><span class="episode-text"><span class="episode-name">{safe_title}</span><span class="episode-hint">{html.escape(hint,quote=False)}</span></span></button>')
           new_block=label+'\n'+'\n'.join(buttons)+'\n'
           target.write_text(prefix+new_block+suffix,encoding='utf-8')
           print(f'Synced {len(episodes)} podcast episodes from RSS.')
+          PY
+
+      - name: Preserve podcast player behavior for RSS episodes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('podcasts.html')
+          s=p.read_text(encoding='utf-8')
+          old="const options={width:'100%',height:160,url:first.dataset.spotifyUrl};"
+          new="const options={width:'100%',height:160,url:first.dataset.spotifyUrl||'https://open.spotify.com/show/3Fa75fsoqh2IGwPEzOxyUg'};"
+          if old in s:
+              s=s.replace(old,new,1)
+          old_click="EmbedController.loadEntity(episode.dataset.spotifyUrl);document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')"
+          new_click="if(episode.dataset.spotifyUrl){EmbedController.loadEntity(episode.dataset.spotifyUrl)}else if(episode.dataset.episodeUrl){window.open(episode.dataset.episodeUrl,'_blank','noopener')}document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')"
+          if old_click in s:
+              s=s.replace(old_click,new_click,1)
+          p.write_text(s,encoding='utf-8')
+          print('Podcast player behavior verified.')
           PY
 
       - name: Ensure Podcasts guide links to dedicated page
