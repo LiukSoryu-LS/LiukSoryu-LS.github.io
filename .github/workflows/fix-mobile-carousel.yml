@@ -12,92 +12,30 @@ jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - uses: actions/checkout@v4
 
-      - name: Patch index.html
+      - name: Add carousel helper to homepage
         run: |
-          python3 <<'PY'
+          python3 - <<'PY'
           from pathlib import Path
-
-          path = Path("index.html")
-          text = path.read_text(encoding="utf-8")
-          marker = '<script id="mobile-preview-carousel-drag-fix-v3">'
-
-          if marker in text:
-              print("v3 fix already present")
-              raise SystemExit(0)
-
-          patch = r'''<script id="mobile-preview-carousel-drag-fix-v3">
-          (function(){
-            if(!new URLSearchParams(window.location.search).has('mobile-preview')) return;
-            var games=document.querySelector('.games');
-            if(!games) return;
-
-            games.style.cursor='grab';
-            games.style.userSelect='none';
-            games.style.webkitUserSelect='none';
-            games.style.touchAction='pan-x';
-
-            var dragging=false;
-            var moved=false;
-            var startX=0;
-            var startScroll=0;
-
-            games.addEventListener('mousedown',function(e){
-              if(e.button!==0) return;
-              dragging=true;
-              moved=false;
-              startX=e.clientX;
-              startScroll=games.scrollLeft;
-              games.style.cursor='grabbing';
-              e.preventDefault();
-            });
-
-            window.addEventListener('mousemove',function(e){
-              if(!dragging) return;
-              var dx=e.clientX-startX;
-              if(Math.abs(dx)>5) moved=true;
-              if(moved) games.scrollLeft=startScroll-dx;
-              if(moved) e.preventDefault();
-            },true);
-
-            function stopDrag(){
-              if(!dragging) return;
-              dragging=false;
-              games.style.cursor='grab';
-            }
-
-            window.addEventListener('mouseup',stopDrag,true);
-            window.addEventListener('mouseleave',stopDrag,true);
-            window.addEventListener('blur',stopDrag);
-
-            games.addEventListener('dragstart',function(e){e.preventDefault();},true);
-
-            games.addEventListener('click',function(e){
-              if(moved){
-                e.preventDefault();
-                e.stopPropagation();
-                moved=false;
-              }
-            },true);
-          })();
-          </script>'''
-
-          if '</body>' not in text:
-              raise SystemExit('Could not find </body> in index.html')
-
-          path.write_text(text.replace('</body>', patch + '\n</body>', 1), encoding='utf-8')
-          print('v3 carousel drag fix injected')
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          tag = '<script src="mobile-preview-drag-fix.js"></script>'
+          if tag not in s:
+              if '</body>' not in s:
+                  raise SystemExit('index.html has no closing body tag')
+              s = s.replace('</body>', tag + '</body>', 1)
+              p.write_text(s, encoding='utf-8')
           PY
 
-      - name: Commit and push fix
+      - name: Commit homepage change
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git diff --cached --quiet && exit 0
-          git commit -m "Fix desktop mobile preview carousel drag"
-          git push origin main
+          if git diff --cached --quiet; then
+            echo 'No homepage change needed.'
+          else
+            git commit -m 'Enable desktop mobile preview carousel drag'
+            git push
+          fi
