@@ -25,6 +25,7 @@ jobs:
           s=re.sub(r'\s*/\* LIUKSORYU desktop mobile preview \*/.*?(?=</style>)','',s,flags=re.S)
           s=re.sub(r'\s*/\* LIUKSORYU desktop mobile-view inspector(?: v2| FINAL)? \*/.*?(?=</style>)','',s,flags=re.S)
           s=re.sub(r'\s*<div id="mobilePreviewOverlay".*?<script>.*?</script>\s*</body>', '', s, count=1, flags=re.S)
+          s=re.sub(r'\s*<div id="mobilePreviewOverlay".*?</script>', '', s, count=1, flags=re.S)
           css='''
 /* LIUKSORYU desktop mobile preview FINAL */
 #mobilePreviewToggle{position:fixed!important;right:18px!important;bottom:18px!important;width:52px!important;height:52px!important;z-index:2147483646!important;border:2px solid transparent!important;border-radius:16px!important;display:grid!important;place-items:center!important;color:#fff!important;cursor:pointer!important;pointer-events:auto!important;background:linear-gradient(rgba(20,12,38,.96),rgba(20,12,38,.96)) padding-box,linear-gradient(110deg,#ef83ff,#b896ff,#7edcff) border-box!important;box-shadow:0 8px 24px rgba(0,0,0,.35)}
@@ -57,9 +58,9 @@ body.mobile-preview-open #mobilePreviewOverlay{display:flex}
 })();
 </script>
 </body>'''
-          s=s.replace('</body>',controls,1)
+          s=s.replace('</html>',controls+'</html>',1)
           p.write_text(s,encoding='utf-8')
-          print('FINAL mobile preview installed')
+          print('FINAL mobile preview installed before </html>')
 
       - name: Commit and request Pages build
         shell: bash
