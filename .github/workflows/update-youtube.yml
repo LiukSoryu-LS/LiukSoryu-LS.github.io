@@ -53,7 +53,7 @@ jobs:
               print(f'::warning::YouTube fetch skipped; keeping existing videos.json: {exc}')
           PY
 
-      - name: Sync all podcast episodes from RSS
+      - name: Sync podcast episode list from RSS
         shell: bash
         run: |
           python3 - <<'PY'
@@ -69,58 +69,48 @@ jobs:
           items=channel.findall('item') if channel is not None else []
           if not items:
               raise RuntimeError('RSS feed returned no podcast episodes')
-          def cdata_text(node, default=''):
+          def node_text(node,default=''):
               return ''.join(node.itertext()).strip() if node is not None else default
           episodes=[]
           for item in items:
-              title=html.unescape(cdata_text(item.find('title'),'Untitled episode'))
+              title=html.unescape(node_text(item.find('title'),'Untitled episode'))
               pub=item.findtext('pubDate','').strip()
               link=item.findtext('link','').strip()
               guid=item.findtext('guid','').strip()
               episodes.append((title,pub,link,guid))
           label='<div class="episode-label">LATEST EPISODES</div>'
           start=text.find(label)
-          if start < 0:
-              raise RuntimeError('Could not find LATEST EPISODES block in podcasts.html')
+          if start<0: raise RuntimeError('LATEST EPISODES block not found')
           end_match=re.search(r'</div>\s*<div><a class="listen"',text[start:])
-          if not end_match:
-              raise RuntimeError('Could not find end of episode list in podcasts.html')
+          if not end_match: raise RuntimeError('Episode list end not found')
           list_end=start+end_match.start()+len('</div>')
-          prefix=text[:start]
-          suffix=text[list_end:]
           buttons=[]
           for i,(title,pub,link,guid) in enumerate(episodes,1):
-              safe_title=html.escape(title,quote=False)
-              date_text=html.escape(pub[:16],quote=False) if pub else ''
-              hint=f'{date_text} • Play this episode in the player above' if date_text else 'Play this episode in the player above'
+              url=link or guid
+              spotify_attr=f' data-spotify-url="{html.escape(url,quote=True)}"' if 'open.spotify.com/episode/' in url else ''
+              external_attr=f' data-episode-url="{html.escape(url,quote=True)}"' if url else ''
+              hint=f'{html.escape(pub[:16],quote=False)} • Play this episode in the player above' if pub else 'Play this episode in the player above'
               active=' active' if i==1 else ''
-              episode_url=link or guid
-              spotify_attr=f' data-spotify-url="{html.escape(episode_url,quote=True)}"' if 'open.spotify.com/episode/' in episode_url else ''
-              external_attr=f' data-episode-url="{html.escape(episode_url,quote=True)}"' if episode_url else ''
-              buttons.append(f'<button class="episode{active}" type="button"{spotify_attr}{external_attr}><span class="episode-number">{i}</span><span class="episode-text"><span class="episode-name">{safe_title}</span><span class="episode-hint">{html.escape(hint,quote=False)}</span></span></button>')
+              buttons.append(f'<button class="episode{active}" type="button"{spotify_attr}{external_attr}><span class="episode-number">{i}</span><span class="episode-text"><span class="episode-name">{html.escape(title,quote=False)}</span><span class="episode-hint">{hint}</span></span></button>')
           new_block=label+'\n'+'\n'.join(buttons)+'\n'
-          target.write_text(prefix+new_block+suffix,encoding='utf-8')
-          print(f'Synced {len(episodes)} podcast episodes from RSS.')
+          target.write_text(text[:start]+new_block+text[list_end:],encoding='utf-8')
+          print(f'Synced {len(episodes)} podcast episodes.')
           PY
 
-      - name: Preserve podcast player behavior for RSS episodes
+      - name: Preserve podcast player behavior
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('podcasts.html')
           s=p.read_text(encoding='utf-8')
-          old="const options={width:'100%',height:160,url:first.dataset.spotifyUrl};"
-          new="const options={width:'100%',height:160,url:first.dataset.spotifyUrl||'https://open.spotify.com/show/3Fa75fsoqh2IGwPEzOxyUg'};"
-          s=s.replace(old,new,1)
-          old_click="EmbedController.loadEntity(episode.dataset.spotifyUrl);document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')"
-          new_click="if(episode.dataset.spotifyUrl){EmbedController.loadEntity(episode.dataset.spotifyUrl)}else if(episode.dataset.episodeUrl){window.open(episode.dataset.episodeUrl,'_blank','noopener')}document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')"
-          s=s.replace(old_click,new_click,1)
+          s=s.replace("const options={width:'100%',height:160,url:first.dataset.spotifyUrl};","const options={width:'100%',height:160,url:first.dataset.spotifyUrl||'https://open.spotify.com/show/3Fa75fsoqh2IGwPEzOxyUg'};",1)
+          s=s.replace("EmbedController.loadEntity(episode.dataset.spotifyUrl);document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')","if(episode.dataset.spotifyUrl){EmbedController.loadEntity(episode.dataset.spotifyUrl)}else if(episode.dataset.episodeUrl){window.open(episode.dataset.episodeUrl,'_blank','noopener')}document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')",1)
           p.write_text(s,encoding='utf-8')
           print('Podcast player behavior preserved.')
           PY
 
-      - name: Ensure Podcasts guide links to dedicated page
+      - name: Protect homepage special cards
         shell: bash
         run: |
           python3 - <<'PY'
@@ -128,50 +118,19 @@ jobs:
           import re
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          marker='<h3>PODCASTS</h3>'
-          pos=s.find(marker)
-          if pos < 0: raise SystemExit('Could not find PODCASTS card')
-          start=s.rfind('<a ',0,pos); end=s.find('</a>',pos)
-          if start < 0 or end < 0: raise SystemExit('Could not isolate PODCASTS card')
-          card=s[start:end+4]
-          card=re.sub(r'(<a\b[^>]*\bhref=")[^"]*(")',r'\1podcasts.html\2',card,count=1)
-          s=s[:start]+card+s[end+4:]
-          p.write_text(s,encoding='utf-8')
-          print('PODCASTS card verified.')
-          PY
 
-      - name: Ensure Podcasts card uses Lore artwork
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p=Path('index.html'); s=p.read_text(encoding='utf-8')
-          pattern=r'(<div class="guide-icon">).*?(</div><h3>PODCASTS</h3>)'
-          replacement=r'\1<img src="Lore.png" alt="Lore podcast artwork" style="width:72px;height:72px;object-fit:contain;display:block">\2'
-          s=re.sub(pattern,replacement,s,count=1,flags=re.S)
-          p.write_text(s,encoding='utf-8')
-          print('PODCASTS artwork verified.')
-          PY
+          podcasts=r'<a class="card guide" href="[^"]*">\s*<div class="guide-overlay">\s*<div class="guide-icon">.*?</div>\s*<h3>PODCASTS</h3>.*?</div>\s*</a>'
+          podcasts_replacement='<a class="card guide" href="podcasts.html"><div class="guide-overlay"><div class="guide-icon"><img src="Lore.png" alt="Lore podcast artwork" style="width:72px;height:72px;object-fit:contain;display:block"></div><h3>PODCASTS</h3><p>Lore • Games • Discussions</p></div></a>'
+          s,n=re.subn(podcasts,podcasts_replacement,s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('Could not safely locate PODCASTS card')
 
-      - name: Ensure Stream Suggestions card uses Boba artwork
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p=Path('index.html'); s=p.read_text(encoding='utf-8')
-          marker='<h3>STREAM SUGGESTIONS</h3>'
-          pos=s.find(marker)
-          if pos < 0: raise SystemExit('Could not find STREAM SUGGESTIONS card')
-          start=s.rfind('<a ',0,pos); end=s.find('</a>',pos)
-          if start < 0 or end < 0: raise SystemExit('Could not isolate STREAM SUGGESTIONS card')
-          card=s[start:end+4]
-          card=re.sub(r'(<a\b[^>]*\bhref=")[^"]*(")',r'\1stream-suggestions.html\2',card,count=1)
-          card=re.sub(r'(<div class="guide-icon">).*?(</div><h3>STREAM SUGGESTIONS</h3>)',r'\1<img src="bobas friends.png" alt="Boba\'s Friends artwork" style="width:72px;height:72px;object-fit:contain;display:block">\2',card,count=1,flags=re.S)
-          s=s[:start]+card+s[end+4:]
+          stream=r'<a class="card guide" href="[^"]*">\s*<div class="guide-overlay">\s*<div class="guide-icon">.*?</div>\s*<h3>STREAM SUGGESTIONS</h3>.*?</div>\s*</a>'
+          stream_replacement='<a class="card guide" href="stream-suggestions.html"><div class="guide-overlay"><div class="guide-icon"><img src="bobas friends.png" alt="Boba\'s Friends artwork" style="width:72px;height:72px;object-fit:contain;display:block"></div><h3>STREAM SUGGESTIONS</h3><p>Your Ideas • Live Discussions</p></div></a>'
+          s,n=re.subn(stream,stream_replacement,s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('Could not safely locate STREAM SUGGESTIONS card')
+
           p.write_text(s,encoding='utf-8')
-          print('STREAM SUGGESTIONS artwork verified.')
+          print('Homepage special cards preserved and updated.')
           PY
 
       - name: Verify protected homepage structure
@@ -180,9 +139,9 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           s=Path('index.html').read_text(encoding='utf-8')
-          checks=['mobilePreviewToggle','mobilePreviewOverlay','bobas friends.png','Lore.png','STREAM SUGGESTIONS','PODCASTS']
+          checks=['mobilePreviewToggle','mobilePreviewOverlay','bobas friends.png','Lore.png','CHARACTER GUIDES','LORE &amp; THEORY','PODCASTS','STREAM SUGGESTIONS']
           missing=[x for x in checks if x not in s]
-          if missing: raise SystemExit('Missing protected homepage elements: '+', '.join(missing))
+          if missing: raise SystemExit('Protected homepage structure missing: '+', '.join(missing))
           print('Protected homepage structure verified.')
           PY
 
