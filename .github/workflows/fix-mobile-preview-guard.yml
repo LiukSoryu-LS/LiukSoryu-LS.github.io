@@ -1,0 +1,44 @@
+name: One-time mobile preview recursion guard
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  guard:
+    if: github.event.head_commit.message != 'Apply mobile preview recursion guard'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add embedded-preview guard
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = 'LIUKSORYU-MOBILE-PREVIEW-RECURSION-GUARD'
+          if marker in s:
+              raise SystemExit(0)
+          css = '''<style id="mobile-preview-recursion-guard">/* LIUKSORYU-MOBILE-PREVIEW-RECURSION-GUARD */
+html.mobile-preview-embedded #mobilePreviewToggle,
+html.mobile-preview-embedded #mobilePreviewOverlay,
+body.mobile-preview-embedded #mobilePreviewToggle,
+body.mobile-preview-embedded #mobilePreviewOverlay{display:none!important}
+</style>'''
+          js = '''<script>(function(){if(!new URLSearchParams(location.search).has('mobile-preview'))return;document.documentElement.classList.add('mobile-preview-embedded');function removePreview(){var a=document.getElementById('mobilePreviewToggle'),b=document.getElementById('mobilePreviewOverlay');if(a)a.remove();if(b)b.remove();}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',removePreview,{once:true});}else{removePreview();}})();</script>'''
+          if '</head>' not in s or '</body>' not in s:
+              raise SystemExit('Expected HTML closing tags not found')
+          s = s.replace('</head>', css + '</head>', 1)
+          s = s.replace('</body>', js + '</body>', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit fix and remove workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git rm .github/workflows/fix-mobile-preview-guard.yml
+          git commit -m 'Apply mobile preview recursion guard'
+          git push
