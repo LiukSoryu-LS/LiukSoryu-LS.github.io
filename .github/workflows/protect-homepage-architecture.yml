@@ -1,0 +1,74 @@
+name: Protect homepage architecture
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  protect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR and base
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate protected homepage contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import subprocess, re, sys
+
+          base = subprocess.check_output(['git', 'show', 'origin/main:index.html'], text=True)
+          head = open('index.html', encoding='utf-8').read()
+
+          def count(text, needle):
+              return text.count(needle)
+
+          def require_same(label, needle):
+              a, b = count(base, needle), count(head, needle)
+              if a != b:
+                  raise SystemExit(f'{label} changed: base={a}, PR={b}')
+
+          # Header social architecture: four fixed platforms and no generic nth-child dependency.
+          for label in ['YouTube', 'Twitch', 'Discord', 'X']:
+              require_same(f'Header {label} marker', f'aria-label="{label}"')
+          require_same('Header social container', '<div class="socials">')
+          if ' .social:nth-child' in head or '.social:nth-child' in head:
+              raise SystemExit('Protected header social icons must not depend on nth-child selectors.')
+
+          # Footer social architecture: the four footer platforms remain explicit.
+          for label in ['Instagram', 'TikTok', 'Bilibili', 'Spotify']:
+              require_same(f'Footer {label} marker', f'aria-label="{label}"')
+          require_same('Footer social container', '<div class="footer-socials">')
+
+          # Games section: preserve the container and card/image structure.
+          for needle, label in [
+              ('class="games"', 'Games container'),
+              ('class="game-name"', 'Game name elements'),
+              ("class=\"image-slot has-image\"", 'Game image slots'),
+          ]:
+              require_same(label, needle)
+
+          # Latest Videos: preserve the container, video card structure, and data-driven thumbnail contract.
+          for needle, label in [
+              ('class="videos"', 'Latest Videos container'),
+              ('class="video"', 'Video card structure'),
+              ("fetch('videos.json')", 'videos.json loader'),
+              ('thumbnail', 'Thumbnail contract'),
+          ]:
+              if count(base, needle) == 0:
+                  raise SystemExit(f'Baseline is missing required marker: {label}')
+              require_same(label, needle)
+
+          # The homepage must continue to contain both distinct profile/community assets.
+          for asset in ['profilediscordcommunity.png', 'Profile.jpg']:
+              require_same(f'Protected asset {asset}', asset)
+
+          # update-youtube is allowed to update generated data, but this protection workflow
+          # deliberately does not permit it to rewrite homepage structure.
+          print('Homepage protection contract passed.')
+          PY
