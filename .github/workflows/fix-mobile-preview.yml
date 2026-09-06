@@ -1,0 +1,32 @@
+name: Fix mobile preview
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          old='@media(max-width:600px){#mobilePreviewToggle,#mobilePreviewOverlay{display:none!important}}'
+          new='@media(max-width:600px){#mobilePreviewToggle{display:grid!important}#mobilePreviewOverlay{display:flex!important}body.mobile-preview-open #mobilePreviewOverlay{display:flex!important}}'
+          s=s.replace(old,new)
+          s=s.replace('<div id="mobilePreviewLabel">MOBILE PREVIEW</div>','<div id="mobilePreviewLabel">MOBILE PREVIEW</div><button id="mobilePreviewClose" type="button" aria-label="Close mobile preview" title="Close">×</button>',1)
+          s=s.replace('</style></head>','<style>#mobilePreviewClose{position:absolute;top:2px;right:6px;z-index:5;width:24px;height:24px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font:700 16px/24px system-ui,sans-serif;cursor:pointer}</style></head>',1)
+          s=s.replace("var frame=document.getElementById('mobilePreviewFrame');","var frame=document.getElementById('mobilePreviewFrame');var closeButton=document.getElementById('mobilePreviewClose');",1)
+          s=s.replace("button.addEventListener('click',function(e){","if(closeButton)closeButton.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();closePreview();});button.addEventListener('click',function(e){",1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html
+          git diff --cached --quiet || (git commit -m 'Fix mobile preview and close button' && git push)
