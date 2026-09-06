@@ -1,0 +1,14 @@
+/* LIUKSORYU social icons: visual state only */
+.social,.footer-social{color:#fff!important}
+.social:hover,.social:focus-visible,.social:active,.footer-social:hover,.footer-social:focus-visible,.footer-social:active{color:#fff!important}
+.social svg,.footer-social svg{width:20px!important;height:20px!important;display:block!important}
+/* Preserve artwork; do not recolor all SVG children globally. */
+.social[aria-label="YouTube"] svg rect{fill:#fff!important;stroke:none!important}
+.social[aria-label="YouTube"] svg path{fill:#130d28!important;stroke:none!important}
+.social[aria-label="Twitch"] svg path{fill:#fff!important;stroke:none!important}
+.social[aria-label="Discord"] svg path{fill:#fff!important;stroke:none!important}
+.social[aria-label="X"] svg path{fill:#fff!important;stroke:none!important}
+.footer-social[aria-label="Instagram"] svg circle,.footer-social[aria-label="Instagram"] svg rect{stroke:#fff!important}
+.footer-social[aria-label="Instagram"] svg circle:last-child{fill:#fff!important;stroke:none!important}
+.footer-social[aria-label="TikTok"] svg path,.footer-social[aria-label="Spotify"] svg path{fill:#fff!important;stroke:none!important}
+.footer-social[aria-label="Bilibili"] svg rect{stroke:#fff!important}.footer-social[aria-label="Bilibili"] svg path{stroke:#fff!important}
