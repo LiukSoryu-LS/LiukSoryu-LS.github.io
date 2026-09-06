@@ -1,1 +1,1 @@
-Trigger mobile preview carousel fix
+Trigger repaired mobile preview carousel fix
