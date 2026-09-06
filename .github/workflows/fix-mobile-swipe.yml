@@ -1,0 +1,47 @@
+name: Fix mobile Games swipe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - mobile-swipe-fix.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add horizontal touch panning
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '.games{gap:10px;padding:2px 2px 10px;scroll-padding-left:2px;'
+          new = '.games{touch-action:pan-x;gap:10px;padding:2px 2px 10px;scroll-padding-left:2px;'
+          if old not in s:
+              raise SystemExit('Expected mobile Games carousel rule was not found.')
+          if 'touch-action:pan-x' not in s:
+              s = s.replace(old, new, 1)
+              p.write_text(s, encoding='utf-8')
+          print('Mobile Games carousel touch panning enabled.')
+          PY
+
+      - name: Verify
+        run: |
+          grep -q 'touch-action:pan-x' index.html
+          echo 'Verified: Games carousel has touch-action: pan-x.'
+
+      - name: Commit and remove one-time workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -f mobile-swipe-fix.trigger .github/workflows/fix-mobile-swipe.yml
+          git add index.html mobile-swipe-fix.trigger .github/workflows/fix-mobile-swipe.yml
+          git commit -m 'Fix mobile Games carousel swipe'
+          git push
