@@ -45,6 +45,22 @@ jobs:
           Path('videos.json').write_text(json.dumps(videos,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
 
+      - name: Link podcast guide to its dedicated page
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          pattern=r'(<a class="card guide" href=")(#)("><div class="guide-overlay"><div class="guide-icon">◫</div><h3>PODCASTS</h3>)'
+          s2,n=re.subn(pattern,r'\g<1>podcasts.html\g<3>',s,count=1)
+          if n!=1:
+              raise SystemExit(f'Could not uniquely find the Podcasts guide card (matches: {n})')
+          p.write_text(s2,encoding='utf-8')
+          print('Linked the Podcasts guide card to podcasts.html')
+          PY
+
       - name: Clean malformed legacy style wrappers and fix mobile layout
         shell: bash
         run: |
@@ -54,9 +70,6 @@ jobs:
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
 
-          # The old social-artwork fixes were accidentally nested as literal <style> tags
-          # inside the original head stylesheet. Remove that legacy block and close the
-          # original stylesheet cleanly before the current mobile patch.
           s=re.sub(
               r'<style>/\* LIUKSORYU social button interaction V1 \*/.*?(?=<style>/\* LIUKSORYU MOBILE HEADER \+ FOOTER FINAL \*/)',
               '</style>',
@@ -64,131 +77,24 @@ jobs:
               flags=re.S
           )
 
-          # Remove previous workflow-generated mobile patches before installing one clean patch.
           s=re.sub(r'<style>/\* LIUKSORYU MOBILE HEADER \+ FOOTER FINAL \*/.*?</style>', '', s, flags=re.S)
           s=re.sub(r'<style>/\* LIUKSORYU MOBILE FOOTER(?: SPACING V[0-9]+| FINAL SPACING| FINAL) \*/.*?</style>', '', s, flags=re.S)
 
           patch='''<style>/* LIUKSORYU MOBILE LAYOUT — CLEAN */
           @media (max-width:600px){
-            /* Header: fixed square social buttons. No stretch, no inherited minimum height. */
-            .topbar .socials{
-              display:flex!important;
-              flex:0 0 auto!important;
-              width:auto!important;
-              height:44px!important;
-              min-height:44px!important;
-              max-height:44px!important;
-              gap:10px!important;
-              align-items:center!important;
-            }
-            .topbar .socials .social{
-              box-sizing:border-box!important;
-              display:grid!important;
-              place-items:center!important;
-              width:44px!important;
-              height:44px!important;
-              min-width:44px!important;
-              max-width:44px!important;
-              min-height:44px!important;
-              max-height:44px!important;
-              flex:0 0 44px!important;
-              align-self:center!important;
-              padding:0!important;
-              margin:0!important;
-              line-height:0!important;
-              overflow:hidden!important;
-              aspect-ratio:1 / 1!important;
-            }
-            .topbar .socials .social svg{
-              width:20px!important;
-              height:20px!important;
-              min-width:20px!important;
-              max-width:20px!important;
-              min-height:20px!important;
-              max-height:20px!important;
-              display:block!important;
-              flex:none!important;
-            }
-
-            /* Footer: deliberate vertical separation between logo, copy, socials and links. */
+            .topbar .socials{display:flex!important;flex:0 0 auto!important;width:auto!important;height:44px!important;min-height:44px!important;max-height:44px!important;gap:10px!important;align-items:center!important}
+            .topbar .socials .social{box-sizing:border-box!important;display:grid!important;place-items:center!important;width:44px!important;height:44px!important;min-width:44px!important;max-width:44px!important;min-height:44px!important;max-height:44px!important;flex:0 0 44px!important;align-self:center!important;padding:0!important;margin:0!important;line-height:0!important;overflow:hidden!important;aspect-ratio:1 / 1!important}
+            .topbar .socials .social svg{width:20px!important;height:20px!important;min-width:20px!important;max-width:20px!important;min-height:20px!important;max-height:20px!important;display:block!important;flex:none!important}
             .footer{padding:48px 0 40px!important}
-            .footer-inner{
-              display:flex!important;
-              flex-direction:column!important;
-              align-items:flex-start!important;
-              justify-content:flex-start!important;
-              gap:40px!important;
-            }
-            .footer-brand{
-              width:100%!important;
-              display:flex!important;
-              flex-direction:column!important;
-              align-items:flex-start!important;
-              gap:22px!important;
-            }
-            .footer-brand>img{
-              width:150px!important;
-              height:58px!important;
-              display:block!important;
-              object-fit:contain!important;
-              margin:0!important;
-            }
-            .footer-copy{
-              margin:0!important;
-              line-height:1.9!important;
-            }
-            .footer-right{
-              width:100%!important;
-              display:flex!important;
-              flex-direction:column!important;
-              align-items:flex-start!important;
-              gap:36px!important;
-              margin:0!important;
-            }
-            .footer-socials{
-              display:flex!important;
-              align-items:center!important;
-              flex-wrap:nowrap!important;
-              gap:14px!important;
-              margin:0!important;
-              padding:0!important;
-            }
-            .footer-social{
-              box-sizing:border-box!important;
-              width:46px!important;
-              height:46px!important;
-              min-width:46px!important;
-              max-width:46px!important;
-              min-height:46px!important;
-              max-height:46px!important;
-              flex:0 0 46px!important;
-              aspect-ratio:1 / 1!important;
-              display:grid!important;
-              place-items:center!important;
-              margin:0!important;
-              padding:0!important;
-              overflow:hidden!important;
-              line-height:0!important;
-            }
-            .footer-social svg{
-              width:20px!important;
-              height:20px!important;
-              min-width:20px!important;
-              max-width:20px!important;
-              min-height:20px!important;
-              max-height:20px!important;
-              display:block!important;
-              flex:none!important;
-            }
-            .footer-links{
-              display:flex!important;
-              align-items:center!important;
-              flex-wrap:wrap!important;
-              gap:22px!important;
-              margin:0!important;
-              padding:0!important;
-              line-height:1.9!important;
-            }
+            .footer-inner{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:40px!important}
+            .footer-brand{width:100%!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:22px!important}
+            .footer-brand>img{width:150px!important;height:58px!important;display:block!important;object-fit:contain!important;margin:0!important}
+            .footer-copy{margin:0!important;line-height:1.9!important}
+            .footer-right{width:100%!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:36px!important;margin:0!important}
+            .footer-socials{display:flex!important;align-items:center!important;flex-wrap:nowrap!important;gap:14px!important;margin:0!important;padding:0!important}
+            .footer-social{box-sizing:border-box!important;width:46px!important;height:46px!important;min-width:46px!important;max-width:46px!important;min-height:46px!important;max-height:46px!important;flex:0 0 46px!important;aspect-ratio:1 / 1!important;display:grid!important;place-items:center!important;margin:0!important;padding:0!important;overflow:hidden!important;line-height:0!important}
+            .footer-social svg{width:20px!important;height:20px!important;min-width:20px!important;max-width:20px!important;min-height:20px!important;max-height:20px!important;display:block!important;flex:none!important}
+            .footer-links{display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:22px!important;margin:0!important;padding:0!important;line-height:1.9!important}
           }
           </style>'''
           i=s.find('</head>')
@@ -207,6 +113,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No changes.'
           else
-            git commit -m 'Clean mobile layout CSS [skip ci]'
+            git commit -m 'Link podcast guide to dedicated page [skip ci]'
             git push
           fi
