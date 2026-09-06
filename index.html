@@ -163,29 +163,39 @@ overlay.addEventListener('click',function(e){if(e.target===overlay)closePreview(
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closePreview();});
 })();
 </script>
-<script>/* LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V1 */
+<script>/* LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V2 */
 (function(){
   if(!new URLSearchParams(window.location.search).has('mobile-preview'))return;
   function init(){
     var games=document.querySelector('.games');
-    if(!games||games.dataset.dragFix==='v1')return;
-    games.dataset.dragFix='v1';
+    if(!games||games.dataset.dragFix==='v2')return;
+    games.dataset.dragFix='v2';
     games.style.cursor='grab';
     games.style.userSelect='none';
     games.style.webkitUserSelect='none';
-    var dragging=false,moved=false,startX=0,startScroll=0;
-    games.addEventListener('mousedown',function(e){
-      if(e.button!==0)return;
-      dragging=true;moved=false;startX=e.clientX;startScroll=games.scrollLeft;
+    games.style.touchAction='pan-x';
+    games.style.scrollBehavior='auto';
+    var dragging=false,moved=false,startX=0,startScroll=0,pointerId=null;
+    games.addEventListener('pointerdown',function(e){
+      if(e.pointerType==='touch'||e.button!==0)return;
+      dragging=true;moved=false;startX=e.clientX;startScroll=games.scrollLeft;pointerId=e.pointerId;
       games.style.cursor='grabbing';
+      try{games.setPointerCapture(pointerId);}catch(_){ }
+      e.preventDefault();
     });
-    window.addEventListener('mousemove',function(e){
-      if(!dragging)return;
+    games.addEventListener('pointermove',function(e){
+      if(!dragging||e.pointerId!==pointerId)return;
       var dx=e.clientX-startX;
       if(Math.abs(dx)>4)moved=true;
       if(moved){games.scrollLeft=startScroll-dx;e.preventDefault();}
-    },true);
-    window.addEventListener('mouseup',function(){dragging=false;games.style.cursor='grab';},true);
+    });
+    function stop(e){
+      if(pointerId!==null&&e&&e.pointerId!==pointerId)return;
+      dragging=false;pointerId=null;games.style.cursor='grab';
+    }
+    games.addEventListener('pointerup',stop);
+    games.addEventListener('pointercancel',stop);
+    games.addEventListener('lostpointercapture',function(){dragging=false;pointerId=null;games.style.cursor='grab';});
     games.addEventListener('dragstart',function(e){e.preventDefault();},true);
     games.addEventListener('click',function(e){if(moved){e.preventDefault();e.stopImmediatePropagation();moved=false;}},true);
   }
