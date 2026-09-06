@@ -1,10 +1,8 @@
 name: Install final desktop mobile preview
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - mobile-preview-install.trigger
+  schedule:
+    - cron: '2-59/5 * * * *'
 
 permissions:
   contents: write
@@ -24,14 +22,11 @@ jobs:
           import re
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-
-          # Remove every previous preview implementation, including the broken body-based versions.
           s=re.sub(r'\s*/\* LIUKSORYU desktop mobile preview(?: FINAL)? \*/.*?(?=</style>)','',s,flags=re.S)
           s=re.sub(r'\s*/\* LIUKSORYU desktop mobile-view inspector(?: v2| FINAL)? \*/.*?(?=</style>)','',s,flags=re.S)
           s=re.sub(r'\s*<div id="mobilePreviewOverlay".*?</script>\s*</body>','',s,count=1,flags=re.S)
           s=re.sub(r'\s*<div id="mobilePreviewOverlay".*?</script>','',s,count=1,flags=re.S)
           s=re.sub(r'\s*<button id="mobilePreviewToggle".*?</button>','',s,count=1,flags=re.S)
-
           css='''
 /* LIUKSORYU desktop mobile preview FINAL */
 #mobilePreviewToggle{position:fixed!important;right:18px!important;bottom:18px!important;width:52px!important;height:52px!important;z-index:2147483646!important;border:2px solid transparent!important;border-radius:16px!important;display:grid!important;place-items:center!important;color:#fff!important;cursor:pointer!important;pointer-events:auto!important;background:linear-gradient(rgba(20,12,38,.96),rgba(20,12,38,.96)) padding-box,linear-gradient(110deg,#ef83ff,#b896ff,#7edcff) border-box!important;box-shadow:0 8px 24px rgba(0,0,0,.35)}
@@ -46,7 +41,6 @@ body.mobile-preview-open #mobilePreviewOverlay{display:flex}
 @media(max-width:600px){#mobilePreviewToggle,#mobilePreviewOverlay{display:none!important}}
 '''
           s=s.replace('</style>',css+'</style>',1)
-
           controls='''
 <div id="mobilePreviewOverlay" aria-hidden="true"><div id="mobilePreviewDevice"><div id="mobilePreviewLabel">MOBILE PREVIEW</div><iframe id="mobilePreviewFrame" title="LIUKSORYU mobile preview"></iframe></div></div>
 <button id="mobilePreviewToggle" type="button" aria-label="Open mobile preview" title="Open mobile preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10 5h4M11 18.5h2"/></svg></button>
@@ -67,19 +61,19 @@ body.mobile-preview-open #mobilePreviewOverlay{display:flex}
 '''
           s=s.replace('</html>',controls+'</html>',1)
           p.write_text(s,encoding='utf-8')
-          print('Installed exactly one mobile preview button before </html>.')
+          print('Installed mobile preview before </html>.')
 
       - name: Verify button exists
         shell: python
         run: |
           from pathlib import Path
           s=Path('index.html').read_text(encoding='utf-8')
-          assert s.count('id="mobilePreviewToggle"') == 1, 'Mobile preview button count is not exactly 1'
-          assert 'id="mobilePreviewFrame"' in s, 'Mobile preview iframe is missing'
-          assert 'LIUKSORYU desktop mobile preview FINAL' in s, 'Mobile preview CSS is missing'
-          print('Verified mobile preview HTML before deployment.')
+          assert s.count('id="mobilePreviewToggle"') == 1
+          assert 'id="mobilePreviewFrame"' in s
+          assert 'LIUKSORYU desktop mobile preview FINAL' in s
+          print('Verified exactly one mobile preview button.')
 
-      - name: Commit and deploy Pages
+      - name: Commit and request Pages build
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
