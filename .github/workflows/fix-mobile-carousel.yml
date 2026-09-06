@@ -2,7 +2,8 @@ name: Fix mobile preview carousel
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -11,23 +12,25 @@ jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      - name: Patch carousel drag support
-        shell: python
+      - name: Patch index.html
         run: |
+          python3 <<'PY'
           from pathlib import Path
 
-          path = Path('index.html')
-          text = path.read_text(encoding='utf-8')
-          marker = '<script id="mobile-preview-carousel-drag-fix-v2">'
+          path = Path("index.html")
+          text = path.read_text(encoding="utf-8")
+          marker = '<script id="mobile-preview-carousel-drag-fix-v3">'
 
           if marker in text:
-              print('Carousel drag fix v2 already present.')
+              print("v3 fix already present")
               raise SystemExit(0)
 
-          patch = r'''<script id="mobile-preview-carousel-drag-fix-v2">
+          patch = r'''<script id="mobile-preview-carousel-drag-fix-v3">
           (function(){
             if(!new URLSearchParams(window.location.search).has('mobile-preview')) return;
             var games=document.querySelector('.games');
@@ -39,14 +42,14 @@ jobs:
             games.style.touchAction='pan-x';
 
             var dragging=false;
-            var dragged=false;
+            var moved=false;
             var startX=0;
             var startScroll=0;
 
             games.addEventListener('mousedown',function(e){
               if(e.button!==0) return;
               dragging=true;
-              dragged=false;
+              moved=false;
               startX=e.clientX;
               startScroll=games.scrollLeft;
               games.style.cursor='grabbing';
@@ -56,10 +59,9 @@ jobs:
             window.addEventListener('mousemove',function(e){
               if(!dragging) return;
               var dx=e.clientX-startX;
-              if(Math.abs(dx)>4) dragged=true;
-              if(!dragged) return;
-              games.scrollLeft=startScroll-dx;
-              e.preventDefault();
+              if(Math.abs(dx)>5) moved=true;
+              if(moved) games.scrollLeft=startScroll-dx;
+              if(moved) e.preventDefault();
             },true);
 
             function stopDrag(){
@@ -69,15 +71,16 @@ jobs:
             }
 
             window.addEventListener('mouseup',stopDrag,true);
+            window.addEventListener('mouseleave',stopDrag,true);
             window.addEventListener('blur',stopDrag);
 
             games.addEventListener('dragstart',function(e){e.preventDefault();},true);
 
             games.addEventListener('click',function(e){
-              if(dragged){
+              if(moved){
                 e.preventDefault();
                 e.stopPropagation();
-                dragged=false;
+                moved=false;
               }
             },true);
           })();
@@ -86,18 +89,15 @@ jobs:
           if '</body>' not in text:
               raise SystemExit('Could not find </body> in index.html')
 
-          text=text.replace('</body>',patch+'\n</body>',1)
-          path.write_text(text,encoding='utf-8')
+          path.write_text(text.replace('</body>', patch + '\n</body>', 1), encoding='utf-8')
+          print('v3 carousel drag fix injected')
+          PY
 
-      - name: Commit patched homepage
-        shell: bash
+      - name: Commit and push fix
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "Fix desktop mobile preview drag with mouse events"
-            git push
-          fi
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix desktop mobile preview carousel drag"
+          git push origin main
