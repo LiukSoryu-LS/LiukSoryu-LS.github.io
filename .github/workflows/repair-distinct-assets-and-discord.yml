@@ -13,63 +13,80 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
           original = s
 
-          # About/profile: use the personal profile asset only. Preserve the
-          # separate community/logo asset everywhere else.
-          about = re.search(r'(<section\\b[^>]*\\bid=["\']about["\'][^>]*>)(.*?)(</section>)', s, re.S | re.I)
-          if about and 'profilediscordcommunity.png' in about.group(2):
-              body = about.group(2).replace('profilediscordcommunity.png', 'Profile.jpg')
-              s = s[:about.start(2)] + body + s[about.end(2):]
+          # 1. About uses the personal profile asset. The community/logo asset
+          # remains untouched everywhere else.
+          about_marker = 'id="about"'
+          about_pos = s.find(about_marker)
+          if about_pos < 0:
+              raise SystemExit('About section not found')
+          section_start = s.rfind('<section', 0, about_pos)
+          section_end = s.find('</section>', about_pos)
+          if section_start < 0 or section_end < 0:
+              raise SystemExit('Could not isolate About section')
+          about_block = s[section_start:section_end]
+          if 'profilediscordcommunity.png' in about_block:
+              about_block = about_block.replace('profilediscordcommunity.png', 'Profile.jpg')
+              s = s[:section_start] + about_block + s[section_end:]
 
           discord_svg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.211.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.69 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.027c.462-.63.873-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.2 13.2 0 0 1-1.872-.89.077.077 0 0 1-.008-.128c.126-.094.252-.192.373-.291a.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.121.099.247.198.374.292a.077.077 0 0 1-.006.127c-.598.344-1.22.64-1.873.89a.075.075 0 0 0-.04.107c.36.698.77 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.9 19.9 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.55-13.66a.06.06 0 0 0-.032-.027zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.418 2.157-2.418 1.21 0 2.166 1.095 2.157 2.418 0 1.334-.956 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.418 2.157-2.418 1.21 0 2.166 1.095 2.157 2.418 0 1.334-.956 2.419-2.157 2.419z"/></svg>'
 
-          # Header Discord: replace only the icon inside the Discord social link.
-          def replace_header(m):
-              return m.group(1) + discord_svg + m.group(3)
-          s = re.sub(r'(<a\\b[^>]*aria-label=["\']Discord["\'][^>]*>)(.*?)(</a>)', replace_header, s, flags=re.S | re.I)
+          # 2. Header Discord: target only the social link carrying the Discord aria label.
+          marker = 'aria-label="Discord"'
+          pos = s.find(marker)
+          if pos >= 0:
+              svg_start = s.find('<svg', pos)
+              svg_end = s.find('</svg>', svg_start)
+              if svg_start >= 0 and svg_end >= 0:
+                  s = s[:svg_start] + discord_svg + s[svg_end + 6:]
 
-          # Community Discord card: replace only the icon in the card whose
-          # contents identify it as Discord.
-          parts = []
-          pos = 0
-          card_re = re.compile(r'<a\\b[^>]*class=["\']community-card["\'][^>]*>.*?</a>', re.S | re.I)
-          for m in card_re.finditer(s):
-              parts.append(s[pos:m.start()])
-              block = m.group(0)
-              if re.search(r'>\\s*Discord\\s*<', block, re.I) or re.search(r'>\\s*DISCORD\\s*<', block, re.I):
-                  block = re.sub(r'(<div\\b[^>]*class=["\']community-icon["\'][^>]*>).*?(</div>)', lambda x: x.group(1) + discord_svg + x.group(2), block, count=1, flags=re.S | re.I)
-              parts.append(block)
-              pos = m.end()
-          parts.append(s[pos:])
-          s = ''.join(parts)
+          # 3. Community Discord card: preserve its asset role, but repair only its glyph.
+          scan = 0
+          while True:
+              card_start = s.find('<a class="community-card"', scan)
+              if card_start < 0:
+                  break
+              card_end = s.find('</a>', card_start)
+              if card_end < 0:
+                  break
+              block = s[card_start:card_end]
+              if 'Discord' in block or 'DISCORD' in block:
+                  icon_start = block.find('<div class="community-icon"')
+                  if icon_start >= 0:
+                      icon_open_end = block.find('>', icon_start)
+                      icon_end = block.find('</div>', icon_open_end)
+                      if icon_open_end >= 0 and icon_end >= 0:
+                          block = block[:icon_open_end + 1] + discord_svg + block[icon_end:]
+                          s = s[:card_start] + block + s[card_end:]
+                          card_end = card_start + len(block)
+              scan = card_end + 4
 
-          # Prevent any generic SVG clipping from affecting these two Discord icons,
-          # including the mobile breakpoint.
+          # 4. Explicit sizing/overflow guard for desktop and mobile.
           if 'id="liuksoryu-discord-asset-fix"' not in s:
               fix = '<style id="liuksoryu-discord-asset-fix">.social[aria-label="Discord"] svg,.community-card .community-icon svg{width:22px!important;height:22px!important;display:block!important;overflow:visible!important;flex:none!important}.social[aria-label="Discord"],.community-card .community-icon{overflow:visible}</style>'
               s = s.replace('</head>', fix + '</head>', 1)
 
           if s == original:
               raise SystemExit('No intended homepage change was made; aborting.')
-
           p.write_text(s, encoding='utf-8')
           PY
-      - name: Verify exact asset roles
+      - name: Verify exact asset roles and repairs
         run: |
-          grep -q 'Profile.jpg' index.html
           python - <<'PY'
           from pathlib import Path
-          import re
           s = Path('index.html').read_text(encoding='utf-8')
-          about = re.search(r'<section\\b[^>]*\\bid=["\']about["\'][^>]*>.*?</section>', s, re.S | re.I)
-          assert about and 'Profile.jpg' in about.group(0), 'About does not use Profile.jpg'
+          about_pos = s.find('id="about"')
+          section_start = s.rfind('<section', 0, about_pos)
+          section_end = s.find('</section>', about_pos)
+          about = s[section_start:section_end]
+          assert 'Profile.jpg' in about, 'About does not use Profile.jpg'
           assert 'profilediscordcommunity.png' in s, 'Community/logo asset was unexpectedly removed'
-          assert s.count('viewBox="0 0 24 24"') >= 1, 'Discord SVG replacement missing'
+          assert 'id="liuksoryu-discord-asset-fix"' in s, 'Discord sizing guard missing'
+          assert 'M20.317 4.37' in s, 'Discord SVG path missing'
           PY
       - name: Commit and remove one-time workflow
         run: |
