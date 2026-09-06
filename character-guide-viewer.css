@@ -1,0 +1,13 @@
+/* Public guide viewer protection: hide editing controls from site visitors. */
+#editGuideButton,
+#editGuide,
+#editModeToggle,
+#editModeButton,
+.edit-guide,
+.edit-mode,
+.editor-controls,
+.edit-controls,
+[data-edit],
+button[title*="Edit"],
+button[aria-label*="Edit"]{display:none!important}
+[contenteditable="true"]{cursor:default!important}
