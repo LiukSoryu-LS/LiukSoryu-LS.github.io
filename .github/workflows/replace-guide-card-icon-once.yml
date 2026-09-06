@@ -1,0 +1,35 @@
+name: Replace guide card icon once
+
+on:
+  push:
+    branches: [replace-guide-card-icon-v2]
+
+permissions:
+  contents: write
+
+jobs:
+  replace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace the Character Guides placeholder icon
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '<a class="card guide" href="character-guides.html"><div class="guide-overlay"><div class="guide-icon">⚔</div><h3>CHARACTER GUIDES</h3>'
+          new = '<a class="card guide" href="character-guides.html"><div class="guide-overlay"><img class="guide-card-icon-img" src="GuidesLiuksoryu.png" alt="LIUKSORYU Guides"><h3>CHARACTER GUIDES</h3>'
+          if old not in s:
+              raise SystemExit('Expected Character Guides placeholder was not found; no changes made.')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit change and remove this workflow
+        run: |
+          rm .github/workflows/replace-guide-card-icon-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html .github/workflows/replace-guide-card-icon-once.yml
+          git commit -m 'Replace character guides placeholder icon'
+          git push
