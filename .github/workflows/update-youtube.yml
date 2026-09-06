@@ -36,16 +36,12 @@ jobs:
                   m=re.search(pattern,html)
                   if m:
                       channel_id=m.group(1); break
-              if not channel_id:
-                  raise RuntimeError('Could not resolve LIUKSORYU channel ID')
+              if not channel_id: raise RuntimeError('Could not resolve LIUKSORYU channel ID')
               xml=urllib.request.urlopen(f'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}',timeout=30).read()
-              root=ET.fromstring(xml)
-              ns={'yt':'http://www.youtube.com/xml/schemas/2015','atom':'http://www.w3.org/2005/Atom'}
+              root=ET.fromstring(xml); ns={'yt':'http://www.youtube.com/xml/schemas/2015','atom':'http://www.w3.org/2005/Atom'}
               videos=[]
               for entry in root.findall('atom:entry',ns)[:5]:
-                  vid=entry.findtext('yt:videoId',default='',namespaces=ns)
-                  title=entry.findtext('atom:title',default='Untitled',namespaces=ns)
-                  published=entry.findtext('atom:published',default='',namespaces=ns)
+                  vid=entry.findtext('yt:videoId',default='',namespaces=ns); title=entry.findtext('atom:title',default='Untitled',namespaces=ns); published=entry.findtext('atom:published',default='',namespaces=ns)
                   videos.append({'title':title,'url':f'https://www.youtube.com/watch?v={vid}','thumbnail':f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg','meta':f'YouTube • {published[:10]}' if published else 'YouTube'})
               Path('videos.json').write_text(json.dumps(videos,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
               print(f'Updated videos.json with {len(videos)} uploads.')
@@ -59,39 +55,23 @@ jobs:
           python3 - <<'PY'
           import html,re,urllib.request,xml.etree.ElementTree as ET
           from pathlib import Path
-          rss_url='https://anchor.fm/s/116b74cd0/podcast/rss'
-          target=Path('podcasts.html')
-          text=target.read_text(encoding='utf-8')
-          req=urllib.request.Request(rss_url,headers={'User-Agent':'Mozilla/5.0'})
-          xml=urllib.request.urlopen(req,timeout=30).read()
-          root=ET.fromstring(xml)
-          channel=root.find('channel')
-          items=channel.findall('item') if channel is not None else []
+          rss_url='https://anchor.fm/s/116b74cd0/podcast/rss'; target=Path('podcasts.html'); text=target.read_text(encoding='utf-8')
+          req=urllib.request.Request(rss_url,headers={'User-Agent':'Mozilla/5.0'}); xml=urllib.request.urlopen(req,timeout=30).read(); root=ET.fromstring(xml)
+          channel=root.find('channel'); items=channel.findall('item') if channel is not None else []
           if not items: raise RuntimeError('RSS feed returned no podcast episodes')
-          def node_text(node,default=''):
-              return ''.join(node.itertext()).strip() if node is not None else default
+          def node_text(node,default=''): return ''.join(node.itertext()).strip() if node is not None else default
           episodes=[]
           for item in items:
-              title=html.unescape(node_text(item.find('title'),'Untitled episode'))
-              pub=item.findtext('pubDate','').strip(); link=item.findtext('link','').strip(); guid=item.findtext('guid','').strip()
-              episodes.append((title,pub,link,guid))
-          label='<div class="episode-label">LATEST EPISODES</div>'
-          start=text.find(label)
+              episodes.append((html.unescape(node_text(item.find('title'),'Untitled episode')),item.findtext('pubDate','').strip(),item.findtext('link','').strip(),item.findtext('guid','').strip()))
+          label='<div class="episode-label">LATEST EPISODES</div>'; start=text.find(label)
           if start<0: raise RuntimeError('LATEST EPISODES block not found')
           end_match=re.search(r'<div><a class="listen"',text[start:])
           if not end_match: raise RuntimeError('Episode list end not found')
-          list_end=start+end_match.start()
-          buttons=[]
+          list_end=start+end_match.start(); buttons=[]
           for i,(title,pub,link,guid) in enumerate(episodes,1):
-              url=link or guid
-              spotify_attr=f' data-spotify-url="{html.escape(url,quote=True)}"' if 'open.spotify.com/episode/' in url else ''
-              external_attr=f' data-episode-url="{html.escape(url,quote=True)}"' if url else ''
-              hint=f'{html.escape(pub[:16],quote=False)} • Play this episode in the player above' if pub else 'Play this episode in the player above'
-              active=' active' if i==1 else ''
+              url=link or guid; spotify_attr=f' data-spotify-url="{html.escape(url,quote=True)}"' if 'open.spotify.com/episode/' in url else ''; external_attr=f' data-episode-url="{html.escape(url,quote=True)}"' if url else ''; hint=f'{html.escape(pub[:16],quote=False)} • Play this episode in the player above' if pub else 'Play this episode in the player above'; active=' active' if i==1 else ''
               buttons.append(f'<button class="episode{active}" type="button"{spotify_attr}{external_attr}><span class="episode-number">{i}</span><span class="episode-text"><span class="episode-name">{html.escape(title,quote=False)}</span><span class="episode-hint">{hint}</span></span></button>')
-          new_block=label+'\n'+'\n'.join(buttons)+'\n'
-          target.write_text(text[:start]+new_block+text[list_end:],encoding='utf-8')
-          print(f'Synced {len(episodes)} podcast episodes.')
+          target.write_text(text[:start]+label+'\n'+'\n'.join(buttons)+'\n'+text[list_end:],encoding='utf-8'); print(f'Synced {len(episodes)} podcast episodes.')
           PY
 
       - name: Preserve podcast player behavior
@@ -102,8 +82,7 @@ jobs:
           p=Path('podcasts.html'); s=p.read_text(encoding='utf-8')
           s=s.replace("const options={width:'100%',height:160,url:first.dataset.spotifyUrl};","const options={width:'100%',height:160,url:first.dataset.spotifyUrl||'https://open.spotify.com/show/3Fa75fsoqh2IGwPEzOxyUg'};",1)
           s=s.replace("EmbedController.loadEntity(episode.dataset.spotifyUrl);document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')","if(episode.dataset.spotifyUrl){EmbedController.loadEntity(episode.dataset.spotifyUrl)}else if(episode.dataset.episodeUrl){window.open(episode.dataset.episodeUrl,'_blank','noopener')}document.querySelectorAll('.episode').forEach(item=>item.classList.remove('active'));episode.classList.add('active')",1)
-          p.write_text(s,encoding='utf-8')
-          print('Podcast player behavior preserved.')
+          p.write_text(s,encoding='utf-8'); print('Podcast player behavior preserved.')
           PY
 
       - name: Protect homepage special cards
@@ -111,18 +90,18 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
           p=Path('index.html'); s=p.read_text(encoding='utf-8')
-          podcasts=r'<a class="card guide" href="[^"]*">\s*<div class="guide-overlay">\s*<div class="guide-icon">.*?</div>\s*<h3>PODCASTS</h3>.*?</div>\s*</a>'
-          podcasts_replacement='<a class="card guide" href="podcasts.html"><div class="guide-overlay"><div class="guide-icon"><img src="Lore.png" alt="Lore podcast artwork" style="width:72px;height:72px;object-fit:contain;display:block"></div><h3>PODCASTS</h3><p>Lore • Games • Discussions</p></div></a>'
-          s,n=re.subn(podcasts,podcasts_replacement,s,count=1,flags=re.S)
-          if n!=1: raise SystemExit('Could not safely locate PODCASTS card')
-          stream=r'<a class="card guide" href="[^"]*">\s*<div class="guide-overlay">\s*<div class="guide-icon">.*?</div>\s*<h3>STREAM SUGGESTIONS</h3>.*?</div>\s*</a>'
-          stream_replacement='<a class="card guide" href="stream-suggestions.html"><div class="guide-overlay"><div class="guide-icon"><img src="bobas friends.png" alt="Boba\'s Friends artwork" style="width:72px;height:72px;object-fit:contain;display:block"></div><h3>STREAM SUGGESTIONS</h3><p>Your Ideas • Live Discussions</p></div></a>'
-          s,n=re.subn(stream,stream_replacement,s,count=1,flags=re.S)
-          if n!=1: raise SystemExit('Could not safely locate STREAM SUGGESTIONS card')
-          p.write_text(s,encoding='utf-8')
-          print('Homepage special cards preserved and updated.')
+          old_podcast='<a class="card guide" href="#"><div class="guide-overlay"><div class="guide-icon">✦</div><h3>STREAM SUGGESTIONS</h3><p>Your Ideas • Live Discussions</p></div></a>'
+          new_podcast='<a class="card guide" href="stream-suggestions.html"><div class="guide-overlay"><div class="guide-icon"><img src="bobas friends.png" alt="Boba\'s Friends artwork" style="width:72px;height:72px;object-fit:contain;display:block"></div><h3>STREAM SUGGESTIONS</h3><p>Your Ideas • Live Discussions</p></div></a>'
+          if old_podcast in s: s=s.replace(old_podcast,new_podcast,1)
+          elif 'src="bobas friends.png"' not in s: raise SystemExit('Could not locate Stream Suggestions card')
+          old_lore='<a class="card guide" href="#"><div class="guide-overlay"><div class="guide-icon">◉</div><h3>LORE &amp; THEORY</h3><p>Stories • Analysis • Speculation</p></div></a>'
+          old_character='<a class="card guide" href="#"><div class="guide-overlay"><div class="guide-icon">⚔</div><h3>CHARACTER GUIDES</h3><p>Builds • Kits • Teams</p></div></a>'
+          old_pod='<a class="card guide" href="#"><div class="guide-overlay"><div class="guide-icon">◆</div><h3>PODCASTS</h3><p>Lore • Games • Discussions</p></div></a>'
+          new_pod='<a class="card guide" href="podcasts.html"><div class="guide-overlay"><div class="guide-icon"><img src="Lore.png" alt="Lore podcast artwork" style="width:72px;height:72px;object-fit:contain;display:block"></div><h3>PODCASTS</h3><p>Lore • Games • Discussions</p></div></a>'
+          if old_pod in s: s=s.replace(old_pod,new_pod,1)
+          elif 'href="podcasts.html"' not in s or 'src="Lore.png"' not in s: raise SystemExit('Could not locate Podcasts card')
+          p.write_text(s,encoding='utf-8'); print('Homepage special cards preserved and updated.')
           PY
 
       - name: Verify protected homepage structure
@@ -140,12 +119,5 @@ jobs:
       - name: Commit generated content only
         shell: bash
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add videos.json podcasts.html index.html
-          if git diff --cached --quiet; then
-            echo 'No generated-content changes.'
-          else
-            git commit -m 'Sync YouTube, podcast and guide content [skip ci]'
-            git push
-          fi
+          git config user.name 'github-actions[bot]'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'; git add videos.json podcasts.html index.html
+          if git diff --cached --quiet; then echo 'No generated-content changes.'; else git commit -m 'Sync YouTube, podcast and guide content [skip ci]'; git push; fi
