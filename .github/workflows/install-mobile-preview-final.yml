@@ -1,8 +1,10 @@
 name: Install final desktop mobile preview
 
 on:
-  schedule:
-    - cron: '2-59/5 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - mobile-preview-install.trigger
 
 permissions:
   contents: write
@@ -15,17 +17,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install mobile preview
+      - name: Install mobile preview directly before html close
         shell: python
         run: |
           from pathlib import Path
           import re
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          s=re.sub(r'\s*/\* LIUKSORYU desktop mobile preview \*/.*?(?=</style>)','',s,flags=re.S)
+
+          # Remove every previous preview implementation, including the broken body-based versions.
+          s=re.sub(r'\s*/\* LIUKSORYU desktop mobile preview(?: FINAL)? \*/.*?(?=</style>)','',s,flags=re.S)
           s=re.sub(r'\s*/\* LIUKSORYU desktop mobile-view inspector(?: v2| FINAL)? \*/.*?(?=</style>)','',s,flags=re.S)
-          s=re.sub(r'\s*<div id="mobilePreviewOverlay".*?<script>.*?</script>\s*</body>', '', s, count=1, flags=re.S)
-          s=re.sub(r'\s*<div id="mobilePreviewOverlay".*?</script>', '', s, count=1, flags=re.S)
+          s=re.sub(r'\s*<div id="mobilePreviewOverlay".*?</script>\s*</body>','',s,count=1,flags=re.S)
+          s=re.sub(r'\s*<div id="mobilePreviewOverlay".*?</script>','',s,count=1,flags=re.S)
+          s=re.sub(r'\s*<button id="mobilePreviewToggle".*?</button>','',s,count=1,flags=re.S)
+
           css='''
 /* LIUKSORYU desktop mobile preview FINAL */
 #mobilePreviewToggle{position:fixed!important;right:18px!important;bottom:18px!important;width:52px!important;height:52px!important;z-index:2147483646!important;border:2px solid transparent!important;border-radius:16px!important;display:grid!important;place-items:center!important;color:#fff!important;cursor:pointer!important;pointer-events:auto!important;background:linear-gradient(rgba(20,12,38,.96),rgba(20,12,38,.96)) padding-box,linear-gradient(110deg,#ef83ff,#b896ff,#7edcff) border-box!important;box-shadow:0 8px 24px rgba(0,0,0,.35)}
@@ -40,6 +46,7 @@ body.mobile-preview-open #mobilePreviewOverlay{display:flex}
 @media(max-width:600px){#mobilePreviewToggle,#mobilePreviewOverlay{display:none!important}}
 '''
           s=s.replace('</style>',css+'</style>',1)
+
           controls='''
 <div id="mobilePreviewOverlay" aria-hidden="true"><div id="mobilePreviewDevice"><div id="mobilePreviewLabel">MOBILE PREVIEW</div><iframe id="mobilePreviewFrame" title="LIUKSORYU mobile preview"></iframe></div></div>
 <button id="mobilePreviewToggle" type="button" aria-label="Open mobile preview" title="Open mobile preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10 5h4M11 18.5h2"/></svg></button>
@@ -57,22 +64,30 @@ body.mobile-preview-open #mobilePreviewOverlay{display:flex}
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closePreview();});
 })();
 </script>
-</body>'''
+'''
           s=s.replace('</html>',controls+'</html>',1)
           p.write_text(s,encoding='utf-8')
-          print('FINAL mobile preview installed before </html>')
+          print('Installed exactly one mobile preview button before </html>.')
 
-      - name: Commit and request Pages build
+      - name: Verify button exists
+        shell: python
+        run: |
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          assert s.count('id="mobilePreviewToggle"') == 1, 'Mobile preview button count is not exactly 1'
+          assert 'id="mobilePreviewFrame"' in s, 'Mobile preview iframe is missing'
+          assert 'LIUKSORYU desktop mobile preview FINAL' in s, 'Mobile preview CSS is missing'
+          print('Verified mobile preview HTML before deployment.')
+
+      - name: Commit and deploy Pages
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          rm -f .github/workflows/install-mobile-preview-final.yml
-          git add index.html .github/workflows/install-mobile-preview-final.yml
-          if ! git diff --cached --quiet; then
-            git commit -m 'Install final working mobile preview'
-            git push
-          fi
+          rm -f mobile-preview-install.trigger .github/workflows/install-mobile-preview-final.yml
+          git add index.html mobile-preview-install.trigger .github/workflows/install-mobile-preview-final.yml
+          git commit -m 'Install working desktop mobile preview'
+          git push
           gh api --method POST /repos/${{ github.repository }}/pages/builds --silent || true
