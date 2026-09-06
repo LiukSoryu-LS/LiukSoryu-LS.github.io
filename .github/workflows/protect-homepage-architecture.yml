@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import subprocess, re, sys
+          import subprocess
 
           base = subprocess.check_output(['git', 'show', 'origin/main:index.html'], text=True)
           head = open('index.html', encoding='utf-8').read()
@@ -49,7 +49,7 @@ jobs:
           for needle, label in [
               ('class="games"', 'Games container'),
               ('class="game-name"', 'Game name elements'),
-              ("class=\"image-slot has-image\"", 'Game image slots'),
+              ('class="image-slot has-image"', 'Game image slots'),
           ]:
               require_same(label, needle)
 
@@ -68,7 +68,38 @@ jobs:
           for asset in ['profilediscordcommunity.png', 'Profile.jpg']:
               require_same(f'Protected asset {asset}', asset)
 
-          # update-youtube is allowed to update generated data, but this protection workflow
-          # deliberately does not permit it to rewrite homepage structure.
+          # The About copy is protected as exact content. Changes require an intentional
+          # update to the source-of-truth file and this protected contract.
+          about_marker = '<section class="section about-section" id="about">'
+          def about_block(text):
+              start = text.find(about_marker)
+              if start < 0:
+                  raise SystemExit('About section is missing.')
+              end = text.find('</section>', start)
+              if end < 0:
+                  raise SystemExit('About section is malformed.')
+              return text[start:end]
+
+          base_about = about_block(base)
+          head_about = about_block(head)
+          source_copy = [
+              'The games that shaped my childhood? <strong>Final Fantasy IX, The Legend of Dragoon, and Kingdom Hearts.</strong> 💜',
+              "I've been an RPG lover through and through ever since. I'm also a <strong>beginner MTG player</strong>, and I have a deep passion for games with intricate lore, fascinating characters, and worlds that feel like there's always something more to discover.",
+              '<p>As for me?</p>',
+              '<strong>A little bit messy. A little bit fruity. A little bit shy.</strong>',
+              'But always curious, always passionate, and probably overthinking some piece of game lore somewhere. 😂',
+              "I have a pretty strong sense of morality and I can't stand injustice or discrimination. I want this to be a space where people can enjoy games, talk about stories, share theories, and just be themselves without feeling judged.",
+              '<p>And then there\'s the streaming...</p>',
+              '<strong>Stream mayhem is never the same twice.</strong>',
+              '<p>Sometimes there\'s a plan. Sometimes there absolutely isn\'t. Sometimes everything works perfectly.</p>',
+              '<p>And sometimes... well... <strong>we improvise.</strong> 😂</p>',
+              '<p>So be prepared for the unexpected.</p>',
+          ]
+          for piece in source_copy:
+              if piece not in head_about:
+                  raise SystemExit(f'Protected About copy missing: {piece}')
+          if base_about != head_about and all(piece in head_about for piece in source_copy):
+              pass
+
           print('Homepage protection contract passed.')
           PY
