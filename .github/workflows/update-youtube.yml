@@ -79,6 +79,27 @@ jobs:
               print('PODCASTS card now points to podcasts.html')
           PY
 
+      - name: Ensure Podcasts card uses Lore artwork
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          pattern=r'(<div class="guide-icon">)◫(</div><h3>PODCASTS</h3>)'
+          replacement=r'\1<img src="Lore.png" alt="Lore podcast artwork" style="width:72px;height:72px;object-fit:contain;display:block">\2'
+          s2=re.sub(pattern,replacement,s,count=1)
+          if s2==s:
+              if 'src="Lore.png" alt="Lore podcast artwork"' in s:
+                  print('PODCASTS card already uses Lore artwork')
+              else:
+                  raise SystemExit('Could not find PODCASTS card icon')
+          else:
+              p.write_text(s2,encoding='utf-8')
+              print('PODCASTS card now uses Lore.png')
+          PY
+
       - name: Commit generated updates
         shell: bash
         run: |
@@ -88,6 +109,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No changes.'
           else
-            git commit -m 'Update YouTube data and preserve podcast link [skip ci]'
+            git commit -m 'Update YouTube data and preserve podcast card [skip ci]'
             git push
           fi
