@@ -1,6 +1,7 @@
 name: Add mobile preview and community asset
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '*/5 * * * *'
 
@@ -22,10 +23,28 @@ jobs:
           s=p.read_text(encoding='utf-8')
           s=re.sub(r'(<a class="card game-card" href="#"[^>]*>\s*<div class="image-slot)(?: has-image)?(?:">.*?</div>)', r'\1 has-image"><img src="profilediscordcommunity.png" alt="LIUKSORYU community" loading="lazy"></div>', s, count=1, flags=re.S) if 'And More To Come…' in s else s
           if '/* LIUKSORYU desktop mobile-view inspector */' not in s:
-              css='''\n/* LIUKSORYU desktop mobile-view inspector */\n#mobilePreviewToggle{position:fixed;right:18px;bottom:18px;z-index:10001;width:50px;height:50px;border:2px solid transparent;border-radius:15px;display:grid;place-items:center;color:#fff;cursor:pointer;background:linear-gradient(rgba(13,8,28,.96),rgba(13,8,28,.96)) padding-box,linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) border-box;box-shadow:0 8px 24px rgba(0,0,0,.35)}\n#mobilePreviewToggle:hover{background:linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) padding-box,linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) border-box;box-shadow:0 0 18px rgba(239,131,255,.38)}\n#mobilePreviewToggle svg{width:23px;height:23px}\n#mobilePreviewOverlay{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:28px;background:rgba(4,2,12,.78);backdrop-filter:blur(7px)}\nbody.mobile-preview-open{overflow:hidden}\nbody.mobile-preview-open #mobilePreviewOverlay{display:flex}\n#mobilePreviewDevice{width:390px;height:min(844px,calc(100vh - 48px));padding:8px;border:2px solid #4b3a67;border-radius:36px;background:#05030a;box-shadow:0 24px 70px rgba(0,0,0,.65);overflow:hidden}\n#mobilePreviewDevice iframe{width:100%;height:100%;border:0;border-radius:27px;background:#090615}\n#mobilePreviewLabel{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:2;padding:5px 10px;border-radius:0 0 10px 10px;background:rgba(8,5,16,.86);color:#cdbde1;font:700 9px system-ui,sans-serif;letter-spacing:.14em}\n@media(max-width:600px){#mobilePreviewToggle,#mobilePreviewOverlay{display:none!important}}\n'''
+              css='''
+/* LIUKSORYU desktop mobile-view inspector */
+#mobilePreviewToggle{position:fixed;right:18px;bottom:18px;z-index:10001;width:50px;height:50px;border:2px solid transparent;border-radius:15px;display:grid;place-items:center;color:#fff;cursor:pointer;background:linear-gradient(rgba(13,8,28,.96),rgba(13,8,28,.96)) padding-box,linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) border-box;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#mobilePreviewToggle:hover{background:linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) padding-box,linear-gradient(110deg,#ef83ff,#b896ff 48%,#7edcff) border-box;box-shadow:0 0 18px rgba(239,131,255,.38)}
+#mobilePreviewToggle svg{width:23px;height:23px}
+#mobilePreviewOverlay{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:28px;background:rgba(4,2,12,.78);backdrop-filter:blur(7px)}
+body.mobile-preview-open{overflow:hidden}
+body.mobile-preview-open #mobilePreviewOverlay{display:flex}
+#mobilePreviewDevice{width:390px;height:min(844px,calc(100vh - 48px));padding:8px;border:2px solid #4b3a67;border-radius:36px;background:#05030a;box-shadow:0 24px 70px rgba(0,0,0,.65);overflow:hidden}
+#mobilePreviewDevice iframe{width:100%;height:100%;border:0;border-radius:27px;background:#090615}
+#mobilePreviewLabel{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:2;padding:5px 10px;border-radius:0 0 10px 10px;background:rgba(8,5,16,.86);color:#cdbde1;font:700 9px system-ui,sans-serif;letter-spacing:.14em}
+@media(max-width:600px){#mobilePreviewToggle,#mobilePreviewOverlay{display:none!important}}
+'''
               s=s.replace('</style>',css+'</style>',1)
           if 'id="mobilePreviewToggle"' not in s:
-              controls='''\n<div id="mobilePreviewOverlay" aria-hidden="true"><div id="mobilePreviewDevice"><div id="mobilePreviewLabel">MOBILE PREVIEW</div><iframe id="mobilePreviewFrame" title="LIUKSORYU mobile preview"></iframe></div></div>\n<button id="mobilePreviewToggle" type="button" aria-label="Open mobile preview" title="Open mobile preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10 5h4M11 18.5h2"/></svg></button>\n<script>\n(()=>{const t=document.getElementById('mobilePreviewToggle'),o=document.getElementById('mobilePreviewOverlay'),f=document.getElementById('mobilePreviewFrame');if(!t||!o||!f)return;let open=false;t.onclick=()=>{open=!open;document.body.classList.toggle('mobile-preview-open',open);if(open&&!f.src)f.src=location.href.split('#')[0].split('?')[0]+'?mobile-preview=1'};o.onclick=e=>{if(e.target===o){open=false;document.body.classList.remove('mobile-preview-open')}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){open=false;document.body.classList.remove('mobile-preview-open')}})})();\n</script>\n'''
+              controls='''
+<div id="mobilePreviewOverlay" aria-hidden="true"><div id="mobilePreviewDevice"><div id="mobilePreviewLabel">MOBILE PREVIEW</div><iframe id="mobilePreviewFrame" title="LIUKSORYU mobile preview"></iframe></div></div>
+<button id="mobilePreviewToggle" type="button" aria-label="Open mobile preview" title="Open mobile preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10 5h4M11 18.5h2"/></svg></button>
+<script>
+(()=>{const t=document.getElementById('mobilePreviewToggle'),o=document.getElementById('mobilePreviewOverlay'),f=document.getElementById('mobilePreviewFrame');if(!t||!o||!f)return;let open=false;t.onclick=()=>{open=!open;document.body.classList.toggle('mobile-preview-open',open);if(open&&!f.src)f.src=location.href.split('#')[0].split('?')[0]+'?mobile-preview=1'};o.onclick=e=>{if(e.target===o){open=false;document.body.classList.remove('mobile-preview-open')}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){open=false;document.body.classList.remove('mobile-preview-open')}})})();
+</script>
+'''
               s=s.replace('</body>',controls+'</body>',1)
           p.write_text(s,encoding='utf-8')
       - name: Commit and remove temporary workflow
