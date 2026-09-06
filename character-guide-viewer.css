@@ -11,3 +11,9 @@
 button[title*="Edit"],
 button[aria-label*="Edit"]{display:none!important}
 [contenteditable="true"]{cursor:default!important}
+
+/* Public viewer: never show empty image placeholder labels over guide thumbnails. */
+.image-slot::after,
+.image-slot .placeholder,
+.image-slot .image-placeholder,
+.image-slot [class*="placeholder"]{display:none!important;content:none!important}
