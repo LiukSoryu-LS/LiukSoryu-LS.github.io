@@ -2,9 +2,8 @@ name: Fix mobile preview button
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/fix-mobile-preview.yml'
+  schedule:
+    - cron: '*/5 * * * *'
 
 permissions:
   contents: write
@@ -25,8 +24,8 @@ jobs:
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
 
-          # Remove the previous mobile-preview implementation completely.
           s = re.sub(r'\s*/\* LIUKSORYU desktop mobile-view inspector \*/.*?(?=</style>)', '', s, count=1, flags=re.S)
+          s = re.sub(r'\s*/\* LIUKSORYU desktop mobile-view inspector v2 \*/.*?(?=</style>)', '', s, count=1, flags=re.S)
           s = re.sub(r'<div id="mobilePreviewOverlay".*?</script>', '', s, count=1, flags=re.S)
 
           css = '''
