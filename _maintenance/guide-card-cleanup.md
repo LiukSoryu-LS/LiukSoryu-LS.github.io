@@ -1,1 +1,0 @@
-Guide cards cleanup marker.
