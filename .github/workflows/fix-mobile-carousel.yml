@@ -1,0 +1,97 @@
+name: Fix mobile preview carousel
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch carousel drag support
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          marker = '<script id="mobile-preview-carousel-drag-fix">'
+
+          if marker in text:
+              print('Carousel drag fix already present.')
+              raise SystemExit(0)
+
+          patch = r'''<script id="mobile-preview-carousel-drag-fix">
+          (function(){
+            if(!new URLSearchParams(window.location.search).has('mobile-preview')) return;
+            var games=document.querySelector('.games');
+            if(!games) return;
+            var down=false,startX=0,startScroll=0,moved=false,pointerId=null;
+            games.style.cursor='grab';
+            games.style.touchAction='pan-x';
+
+            games.addEventListener('pointerdown',function(e){
+              if(e.pointerType==='mouse' && e.button!==0) return;
+              down=true;
+              moved=false;
+              pointerId=e.pointerId;
+              startX=e.clientX;
+              startScroll=games.scrollLeft;
+              if(games.setPointerCapture) games.setPointerCapture(e.pointerId);
+              games.style.cursor='grabbing';
+            });
+
+            games.addEventListener('pointermove',function(e){
+              if(!down) return;
+              var dx=e.clientX-startX;
+              if(Math.abs(dx)>6) moved=true;
+              if(!moved) return;
+              e.preventDefault();
+              games.scrollLeft=startScroll-dx;
+            },{passive:false});
+
+            function end(){
+              if(!down) return;
+              down=false;
+              pointerId=null;
+              games.style.cursor='grab';
+            }
+
+            games.addEventListener('pointerup',end);
+            games.addEventListener('pointercancel',end);
+            games.addEventListener('lostpointercapture',end);
+
+            games.addEventListener('click',function(e){
+              if(moved){
+                e.preventDefault();
+                e.stopPropagation();
+                moved=false;
+              }
+            },true);
+          })();
+          </script>'''
+
+          if '</body>' not in text:
+              raise SystemExit('Could not find </body> in index.html')
+
+          text = text.replace('</body>', patch + '\n</body>', 1)
+          path.write_text(text, encoding='utf-8')
+
+      - name: Commit patched homepage
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Enable drag swipe in mobile preview games carousel"
+            git push
+          fi
