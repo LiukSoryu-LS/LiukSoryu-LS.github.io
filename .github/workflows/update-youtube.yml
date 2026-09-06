@@ -51,45 +51,58 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          marker='LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V1'
-          if marker not in s:
-              script='''<script>/* LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V1 */
+          marker='LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V2'
+          script='''<script>/* LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V2 */
           (function(){
             if(!new URLSearchParams(window.location.search).has('mobile-preview'))return;
             function init(){
               var games=document.querySelector('.games');
-              if(!games||games.dataset.dragFix==='v1')return;
-              games.dataset.dragFix='v1';
+              if(!games||games.dataset.dragFix==='v2')return;
+              games.dataset.dragFix='v2';
               games.style.cursor='grab';
               games.style.userSelect='none';
               games.style.webkitUserSelect='none';
-              var dragging=false,moved=false,startX=0,startScroll=0;
-              games.addEventListener('mousedown',function(e){
-                if(e.button!==0)return;
-                dragging=true;moved=false;startX=e.clientX;startScroll=games.scrollLeft;
+              games.style.touchAction='pan-x';
+              games.style.scrollBehavior='auto';
+              var dragging=false,moved=false,startX=0,startScroll=0,pointerId=null;
+              games.addEventListener('pointerdown',function(e){
+                if(e.pointerType==='touch'||e.button!==0)return;
+                dragging=true;moved=false;startX=e.clientX;startScroll=games.scrollLeft;pointerId=e.pointerId;
                 games.style.cursor='grabbing';
+                try{games.setPointerCapture(pointerId);}catch(_){ }
+                e.preventDefault();
               });
-              window.addEventListener('mousemove',function(e){
-                if(!dragging)return;
+              games.addEventListener('pointermove',function(e){
+                if(!dragging||e.pointerId!==pointerId)return;
                 var dx=e.clientX-startX;
                 if(Math.abs(dx)>4)moved=true;
                 if(moved){games.scrollLeft=startScroll-dx;e.preventDefault();}
-              },true);
-              window.addEventListener('mouseup',function(){dragging=false;games.style.cursor='grab';},true);
+              });
+              function stop(e){
+                if(pointerId!==null&&e&&e.pointerId!==pointerId)return;
+                dragging=false;pointerId=null;games.style.cursor='grab';
+              }
+              games.addEventListener('pointerup',stop);
+              games.addEventListener('pointercancel',stop);
+              games.addEventListener('lostpointercapture',function(){dragging=false;pointerId=null;games.style.cursor='grab';});
               games.addEventListener('dragstart',function(e){e.preventDefault();},true);
               games.addEventListener('click',function(e){if(moved){e.preventDefault();e.stopImmediatePropagation();moved=false;}},true);
             }
             if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
           })();</script>'''
+          pattern=r'<script>/\* LIUKSORYU-MOBILE-PREVIEW-CAROUSEL-DRAG-V(?:1|2) \*/.*?</script>'
+          if re.search(pattern,s,flags=re.S):
+              s=re.sub(pattern,script,s,count=1,flags=re.S)
+              print('Updated existing carousel drag fix.')
+          else:
               insert_at=s.rfind('</html>')
               if insert_at<0: insert_at=len(s)
               s=s[:insert_at]+script+s[insert_at:]
-              p.write_text(s,encoding='utf-8')
-              print('Permanent carousel drag fix installed.')
-          else:
-              print('Carousel drag fix already installed.')
+              print('Installed carousel drag fix.')
+          p.write_text(s,encoding='utf-8')
           PY
 
       - name: Connect latest videos to homepage
