@@ -20,7 +20,7 @@ jobs:
           old='.video .image-slot{aspect-ratio:16/9}'
           fix=old+'.video .image-slot::after{display:none!important;content:none!important}'
           if fix in s: raise SystemExit(0)
-          if s.count(old)!=1: raise SystemExit(f'Expected one target, found {s.count(old)}')
+          if s.count(old)<1: raise SystemExit('Target CSS rule not found')
           p.write_text(s.replace(old,fix,1),encoding='utf-8')
           PY
           git config user.name 'github-actions[bot]'
