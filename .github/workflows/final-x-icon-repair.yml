@@ -1,0 +1,42 @@
+name: Final X icon repair
+on:
+  push:
+    branches: [fix-x-icon-stable-final]
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix-x-icon-stable-final
+          fetch-depth: 0
+      - name: Replace only the header X rendering
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          pattern=re.compile(r'(<div class="socials">.*?<a class="social"[^>]*aria-label="X"[^>]*>)(.*?)(</a>)', re.S)
+          m=pattern.search(s)
+          if not m:
+              raise SystemExit('Header X anchor not found')
+          inner='<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817-5.963 6.817H1.684l7.73-8.835L1.254 2.25H9.08l4.713 6.231L18.244 2.25Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/></svg>'
+          s=s[:m.start()]+m.group(1)+inner+m.group(3)+s[m.end():]
+          s=re.sub(r'<style id="liuksoryu-single-x-header-lock">.*?</style>','',s,flags=re.S)
+          s=re.sub(r'<style id="liuksoryu-final-x-visual-bounds">.*?</style>','',s,flags=re.S)
+          s=re.sub(r'<style id="liuksoryu-x-geometry-fix">.*?</style>','',s,flags=re.S)
+          marker='<style id="liuksoryu-final-x-svg-lock">.socials .social[aria-label="X"] svg{width:20px!important;height:20px!important;display:block!important;fill:currentColor!important;overflow:visible!important}@media(max-width:600px){.socials .social[aria-label="X"] svg{width:18px!important;height:18px!important}}</style>'
+          if 'id="liuksoryu-final-x-svg-lock"' not in s:
+              s=s.replace('</head>',marker+'</head>',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          rm -f .github/workflows/final-x-icon-repair.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html .github/workflows/final-x-icon-repair.yml
+          git commit -m 'Finalize matching X header icon'
+          git push origin HEAD:fix-x-icon-stable-final
