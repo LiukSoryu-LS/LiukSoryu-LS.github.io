@@ -2,15 +2,18 @@ name: Repair uploaded X asset
 on:
   push:
     branches: [main]
+  pull_request_target:
+    types: [opened, synchronize]
 permissions:
   contents: write
 jobs:
   repair:
+    if: github.event_name == 'push' || (github.event.pull_request.head.ref == 'fix-x-asset-now' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.ref || 'main' }}
           fetch-depth: 0
       - name: Replace header X asset with uploaded file
         shell: bash
@@ -40,4 +43,4 @@ jobs:
           git add index.html .github/workflows/protect-homepage-architecture.yml .github/workflows/repair-uploaded-x-asset.yml
           git diff --cached --quiet && exit 0
           git commit -m 'Use uploaded X icon asset on homepage'
-          git push origin HEAD:main
+          git push origin HEAD:${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.ref || 'main' }}
