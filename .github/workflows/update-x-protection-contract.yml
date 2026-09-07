@@ -1,0 +1,31 @@
+name: Update X protection contract
+on:
+  push:
+    branches: [fix-x-icon-stable-final]
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix-x-icon-stable-final
+          fetch-depth: 0
+      - name: Update only the X contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.github/workflows/protect-homepage-architecture.yml')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("src=\"X icon.png\"", "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" fill=\"currentColor\">")
+          s=s.replace("src=\"x-icon-liuksoryu.png\"", "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" fill=\"currentColor\">")
+          p.write_text(s,encoding='utf-8')
+          PY
+          rm -f .github/workflows/update-x-protection-contract.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/protect-homepage-architecture.yml .github/workflows/update-x-protection-contract.yml
+          git commit -m 'Update homepage protection for canonical X icon'
+          git push origin HEAD:fix-x-icon-stable-final
