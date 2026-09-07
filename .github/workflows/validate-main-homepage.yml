@@ -24,34 +24,34 @@ jobs:
           test -f index.html
 
           # Mobile Preview: the complete component must remain intact.
-          grep -q 'id="liuksoryu-mobile-preview-lock"' index.html
-          grep -q 'LIUKSORYU-MOBILE-PREVIEW-LOCKED' index.html
-          grep -q 'id="mobilePreviewToggle"' index.html
-          grep -q 'id="mobilePreviewOverlay"' index.html
-          grep -q 'id="mobilePreviewDevice"' index.html
-          grep -q 'id="mobilePreviewLabel"' index.html
-          grep -q 'id="mobilePreviewClose"' index.html
-          grep -q 'id="mobilePreviewFrame"' index.html
-          grep -q '?mobile-preview=1' index.html
-          grep -q 'mobile-preview-embedded' index.html
-          grep -q 'id="liuksoryu-mobile-preview-script"' index.html
+          grep -Fq 'id="liuksoryu-mobile-preview-lock"' index.html
+          grep -Fq 'LIUKSORYU-MOBILE-PREVIEW-LOCKED' index.html
+          grep -Fq 'id="mobilePreviewToggle"' index.html
+          grep -Fq 'id="mobilePreviewOverlay"' index.html
+          grep -Fq 'id="mobilePreviewDevice"' index.html
+          grep -Fq 'id="mobilePreviewLabel"' index.html
+          grep -Fq 'id="mobilePreviewClose"' index.html
+          grep -Fq 'id="mobilePreviewFrame"' index.html
+          grep -Fq '?mobile-preview=1' index.html
+          grep -Fq 'mobile-preview-embedded' index.html
+          grep -Fq 'id="liuksoryu-mobile-preview-script"' index.html
 
           # Social rendering: no selector may hide the fourth header icon.
-          ! grep -q '\.social:nth-child(n+4)' index.html
-          grep -q 'id="liuksoryu-final-social-render-lock"' index.html
-          grep -q 'aria-label="Discord"' index.html
-          grep -q 'aria-label="X"' index.html
-          test "$(grep -o 'M20.317 4.3698' index.html | wc -l | tr -d ' ')" -eq 2
-          grep -q 'M18.244 2.25h3.308' index.html
-          test "$(grep -o 'aria-label="X"><svg' index.html | wc -l | tr -d ' ')" -eq 1
-          test "$(grep -o '<div class="community-icon">𝕏</div>' index.html | wc -l | tr -d ' ')" -eq 1
-          grep -q 'community-icon svg{width:22px;height:22px;display:block' index.html
-          ! grep -q 'M20.3 4.3A19.8' index.html
+          ! grep -Fq '.social:nth-child(n+4)' index.html
+          grep -Fq 'id="liuksoryu-final-social-render-lock"' index.html
+          grep -Fq 'aria-label="Discord"' index.html
+          grep -Fq 'aria-label="X"' index.html
+          test "$(grep -oF 'M20.317 4.3698' index.html | wc -l | tr -d ' ')" -eq 2
+          grep -Fq 'M18.244 2.25h3.308' index.html
+          test "$(grep -oF 'aria-label="X"><svg' index.html | wc -l | tr -d ' ')" -eq 1
+          test "$(grep -oF '<div class="community-icon">𝕏</div>' index.html | wc -l | tr -d ' ')" -eq 1
+          grep -Fq 'community-icon svg{width:22px;height:22px;display:block' index.html
+          ! grep -Fq 'M20.3 4.3A19.8' index.html
 
           # Core homepage structure/assets.
-          test "$(grep -o 'data-video-card' index.html | wc -l | tr -d ' ')" -eq 5
-          grep -q "fetch('videos.json?v='+Date.now()" index.html
-          grep -q 'Profile.jpg' index.html
-          grep -q 'profilediscordcommunity.png' index.html
+          test "$(grep -oF 'data-video-card' index.html | wc -l | tr -d ' ')" -eq 5
+          grep -Fq "fetch('videos.json?v='+Date.now()" index.html
+          grep -Fq 'Profile.jpg' index.html
+          grep -Fq 'profilediscordcommunity.png' index.html
 
           echo 'Protected homepage validation passed.'
