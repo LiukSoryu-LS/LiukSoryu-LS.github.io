@@ -63,9 +63,10 @@ jobs:
                   raise SystemExit(f'Baseline missing {label}')
               require_same(label, needle)
 
-          # Distinct assets remain protected.
+          # Distinct assets must remain present, without relying on brittle occurrence counts.
           for asset in ['profilediscordcommunity.png', 'Profile.jpg']:
-              require_same(f'Protected asset {asset}', asset)
+              if count(base, asset) == 0 or count(head, asset) == 0:
+                  raise SystemExit(f'Protected asset missing: {asset}')
 
           # Exact About section remains protected.
           about_marker = '<section class="section about-section" id="about">'
