@@ -1,0 +1,44 @@
+name: Temporary trusted X repair
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: github.event.pull_request.head.ref == 'fix-x-visual-balance-final' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix-x-visual-balance-final
+          fetch-depth: 0
+      - name: Apply surgical X balance correction
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:15px!important;height:15px!important'
+          new = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:18px!important;height:18px!important'
+          assert s.count(old) == 1
+          s = s.replace(old, new, 1)
+          oldm = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:13px!important;height:13px!important'
+          newm = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:16px!important;height:16px!important'
+          assert s.count(oldm) == 1
+          s = s.replace(oldm, newm, 1)
+          p.write_text(s, encoding='utf-8')
+          v = Path('.github/workflows/validate-main-homepage.yml')
+          vs = v.read_text(encoding='utf-8')
+          assert vs.count('width:15px!important;height:15px!important') == 1
+          assert vs.count('width:13px!important;height:13px!important') == 1
+          vs = vs.replace('width:15px!important;height:15px!important', 'width:18px!important;height:18px!important', 1)
+          vs = vs.replace('width:13px!important;height:13px!important', 'width:16px!important;height:16px!important', 1)
+          v.write_text(vs, encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html .github/workflows/validate-main-homepage.yml
+          git commit -m 'Tune X icon to balanced visual weight' || exit 0
+          git push origin HEAD:fix-x-visual-balance-final
