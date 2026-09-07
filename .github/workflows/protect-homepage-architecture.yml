@@ -102,7 +102,8 @@ jobs:
           required = [
               'id="liuksoryu-final-social-render-lock"',
               'M524.531,69.836',
-              'aria-label="X"><img class="liuksoryu-header-x-asset" src="x-icon-liuksoryu.png"',
+              'aria-label="X"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">',
+              'M18.244 2.25h3.308',
               'fill="currentColor"'
           ]
           for needle in required:
@@ -112,8 +113,10 @@ jobs:
               raise SystemExit('Stable Discord path must exist in both header and community Discord icons.')
           if count(head, 'M20.3 4.3A19.8'):
               raise SystemExit('Malformed legacy Discord path detected.')
-          if count(head, 'aria-label="X"><svg') != 0:
-              raise SystemExit('Header X SVG must remain replaced by the supplied branded asset.')
+          if count(head, 'aria-label="X"><svg') != 1:
+              raise SystemExit('Header X must use exactly one canonical inline SVG.')
+          if count(head, 'x-icon-liuksoryu.png') != 0 or count(head, 'X icon.png') != 0:
+              raise SystemExit('Obsolete uploaded X image assets must not be used by the header.')
           if count(head, '<div class="community-icon">𝕏</div>') != 1:
               raise SystemExit('Community X text icon must remain untouched.')
           if count(head, 'id="liuksoryu-final-social-render-lock"') != 1:
