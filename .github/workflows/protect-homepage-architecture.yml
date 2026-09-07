@@ -47,7 +47,7 @@ jobs:
               require_same(f'Footer {label} marker', f'aria-label="{label}"')
           require_same('Footer social container', '<div class="footer-socials">')
 
-          # Games and Latest Videos architecture. These strings match the actual homepage markup/CSS.
+          # Games and Latest Videos architecture. Protect the real markup strings without assuming a fixed card count.
           for needle, label in [
               ('class="games"', 'Games container'),
               ('class="game-name"', 'Game name elements'),
@@ -62,7 +62,11 @@ jobs:
                   raise SystemExit(f'Baseline missing {label}')
               require_same(label, needle)
 
-          # Protect the complete About section copy rather than relying on brittle text counts.
+          # Distinct assets remain protected.
+          for asset in ['profilediscordcommunity.png', 'Profile.jpg']:
+              require_same(f'Protected asset {asset}', asset)
+
+          # Exact About section remains protected.
           about_marker = '<section class="section about-section" id="about">'
           def about_block(text):
               start = text.find(about_marker)
@@ -74,10 +78,6 @@ jobs:
               return text[start:end]
           if about_block(base) != about_block(head):
               raise SystemExit('Protected About section changed.')
-
-          # Distinct assets remain protected.
-          for asset in ['profilediscordcommunity.png', 'Profile.jpg']:
-              require_same(f'Protected asset {asset}', asset)
 
           # Mobile Preview contract is immutable once present on main.
           mobile = [
