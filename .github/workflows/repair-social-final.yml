@@ -1,0 +1,65 @@
+name: Final social icon repair
+on:
+  push:
+    branches: [repair-canonical-social-icons]
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out isolated branch
+        uses: actions/checkout@v4
+      - name: Repair and validate
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          canonical = '''M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037A19.7363 19.7363 0 0 0 3.677 4.3698a.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0095c.1202.099.246.198.3728.2924a.077.077 0 0 1-.0066.1276c-.6-.35-1.227-.648-1.873-.8914a.0766.0766 0 0 0-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 0 0 .0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 0 0 .0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 0 0-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.333.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.333-.946 2.4189-2.1568 2.4189z'''
+
+          if s.count(canonical) < 2:
+              pattern = re.compile(r'(<path d=")([^"]+)("/>)')
+              matches = list(pattern.finditer(s))
+              discord = [m for m in matches if m.group(2).startswith('M20.317 4.3698')]
+              if len(discord) != 2:
+                  raise SystemExit(f'Expected exactly 2 Discord SVG paths, found {len(discord)}')
+              pieces = []
+              last = 0
+              for m in discord:
+                  pieces.append(s[last:m.start(2)])
+                  pieces.append(canonical)
+                  last = m.end(2)
+              pieces.append(s[last:])
+              s = ''.join(pieces)
+
+          required = [
+              'id="liuksoryu-mobile-preview-lock"',
+              'LIUKSORYU-MOBILE-PREVIEW-LOCKED',
+              'id="liuksoryu-final-social-render-lock"',
+              'M18.244 2.25h3.308',
+              canonical,
+          ]
+          for marker in required:
+              if marker not in s:
+                  raise SystemExit(f'Missing protected marker: {marker}')
+          if s.count(canonical) != 2:
+              raise SystemExit(f'Discord canonical path count is {s.count(canonical)}, expected 2')
+          if s.count('class="social"') != 4:
+              raise SystemExit('Header social count changed')
+          if '.social:nth-child(n+4)' in s:
+              raise SystemExit('Forbidden nth-child social rule detected')
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git rm -f .github/workflows/repair-social-final.yml _maintenance/repair-social-final-trigger.txt
+          git commit -m 'Finalize canonical Discord rendering and remove repair automation'
+          git push origin HEAD:repair-canonical-social-icons
