@@ -1,0 +1,41 @@
+name: Remove duplicate X header rendering
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Replace the header X button with one uploaded asset
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          pattern = re.compile(r'(<div[^>]*class=["\'][^"\']*socials[^"\']*["\'][^>]*>.*?<a[^>]*aria-label=["\']X["\'][^>]*>)(.*?)(</a>)', re.I|re.S)
+          m = pattern.search(s)
+          if not m:
+              raise SystemExit('Could not locate header .socials X anchor')
+          inner = '<img class="liuksoryu-header-x-asset" src="X icon.png" alt="X">'
+          replacement = m.group(1) + inner + m.group(3)
+          s = s[:m.start()] + replacement + s[m.end():]
+          style = '<style id="liuksoryu-single-x-header-lock">.socials .social[aria-label="X"]{position:relative;overflow:hidden!important}.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:20px!important;height:20px!important;display:block!important;object-fit:contain!important;object-position:center!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;transform:none!important;flex:none!important}@media(max-width:600px){.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:18px!important;height:18px!important}}</style>'
+          if 'id="liuksoryu-single-x-header-lock"' not in s:
+              s = s.replace('</head>', style + '</head>', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+          rm -f .github/workflows/repair-uploaded-x-asset.yml .github/workflows/repair-x-asset-now.yml .github/workflows/fix-x-header-duplicate-now.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html .github/workflows/repair-uploaded-x-asset.yml .github/workflows/repair-x-asset-now.yml .github/workflows/fix-x-header-duplicate-now.yml
+          git diff --cached --quiet && exit 0
+          git commit -m 'Remove duplicate X header rendering'
+          git push origin HEAD:main
