@@ -1,0 +1,37 @@
+name: Temporary trusted X bounds repair
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: github.event.pull_request.head.ref == 'fix-x-visual-bounds-final' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix-x-visual-bounds-final
+          fetch-depth: 0
+      - name: Remove restrictive X max bounds
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          pattern=r'(\.socials \.social\[aria-label="X"\] \.liuksoryu-header-x-asset\{width:)\d+px(!important;height:)\d+px(!important;display:block!important;object-fit:contain!important;flex:none!important;max-width:)\d+px(!important;max-height:)\d+px(!important)'
+          s,n1=re.subn(pattern,r'\g<1>18px\g<2>18px\g<3>18px\g<4>18px\g<5>',s,count=1)
+          mobile=r'(@media\(max-width:600px\).*?\.socials \.social\[aria-label="X"\] \.liuksoryu-header-x-asset\{width:)\d+px(!important;height:)\d+px(!important;display:block!important;object-fit:contain!important;flex:none!important;max-width:)\d+px(!important;max-height:)\d+px(!important)'
+          s,n2=re.subn(mobile,r'\g<1>16px\g<2>16px\g<3>16px\g<4>16px\g<5>',s,count=1,flags=re.S)
+          print('desktop bounds changed:',n1)
+          print('mobile bounds changed:',n2)
+          assert n1==1 and n2==1
+          p.write_text(s,encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Fix X asset visual bounds' || exit 0
+          git push origin HEAD:fix-x-visual-bounds-final
