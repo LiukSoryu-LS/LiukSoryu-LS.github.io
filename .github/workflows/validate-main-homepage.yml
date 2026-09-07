@@ -46,7 +46,7 @@ jobs:
               "exactly one community X text icon": html.count('<div class="community-icon">𝕏</div>') == 1,
               "community SVG sizing": 'community-icon svg{width:22px;height:22px;display:block}' in html,
               "malformed Discord path absent": "M20.3 4.3A19.8" not in html,
-              "five video cards": html.count("data-video-card") == 5,
+              "five protected video cards": html.count('class="card video" data-video-card') == 5,
               "video loader": "fetch('videos.json?v='+Date.now()" in html,
               "personal profile asset": "Profile.jpg" in html,
               "community asset": "profilediscordcommunity.png" in html,
