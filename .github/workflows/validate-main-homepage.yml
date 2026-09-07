@@ -18,40 +18,45 @@ jobs:
           fetch-depth: 1
 
       - name: Validate immutable homepage contracts
-        shell: bash
+        shell: python
         run: |
-          set -euo pipefail
-          test -f index.html
+          from pathlib import Path
 
-          # Mobile Preview: the complete component must remain intact.
-          grep -Fq 'id="liuksoryu-mobile-preview-lock"' index.html
-          grep -Fq 'LIUKSORYU-MOBILE-PREVIEW-LOCKED' index.html
-          grep -Fq 'id="mobilePreviewToggle"' index.html
-          grep -Fq 'id="mobilePreviewOverlay"' index.html
-          grep -Fq 'id="mobilePreviewDevice"' index.html
-          grep -Fq 'id="mobilePreviewLabel"' index.html
-          grep -Fq 'id="mobilePreviewClose"' index.html
-          grep -Fq 'id="mobilePreviewFrame"' index.html
-          grep -Fq '?mobile-preview=1' index.html
-          grep -Fq 'mobile-preview-embedded' index.html
-          grep -Fq 'id="liuksoryu-mobile-preview-script"' index.html
+          html = Path("index.html").read_text(encoding="utf-8")
 
-          # Social rendering: no selector may hide the fourth header icon.
-          ! grep -Fq '.social:nth-child(n+4)' index.html
-          grep -Fq 'id="liuksoryu-final-social-render-lock"' index.html
-          grep -Fq 'aria-label="Discord"' index.html
-          grep -Fq 'aria-label="X"' index.html
-          test "$(grep -oF 'M20.317 4.3698' index.html | wc -l | tr -d ' ')" -eq 2
-          grep -Fq 'M18.244 2.25h3.308' index.html
-          test "$(grep -oF 'aria-label="X"><svg' index.html | wc -l | tr -d ' ')" -eq 1
-          test "$(grep -oF '<div class="community-icon">𝕏</div>' index.html | wc -l | tr -d ' ')" -eq 1
-          grep -Fq 'community-icon svg{width:22px;height:22px;display:block' index.html
-          ! grep -Fq 'M20.3 4.3A19.8' index.html
+          checks = {
+              "mobile preview lock": 'id="liuksoryu-mobile-preview-lock"' in html,
+              "mobile preview marker": "LIUKSORYU-MOBILE-PREVIEW-LOCKED" in html,
+              "mobile preview toggle": 'id="mobilePreviewToggle"' in html,
+              "mobile preview overlay": 'id="mobilePreviewOverlay"' in html,
+              "mobile preview device": 'id="mobilePreviewDevice"' in html,
+              "mobile preview label": 'id="mobilePreviewLabel"' in html,
+              "mobile preview close": 'id="mobilePreviewClose"' in html,
+              "mobile preview frame": 'id="mobilePreviewFrame"' in html,
+              "mobile preview query": "?mobile-preview=1" in html,
+              "mobile preview recursion guard": "mobile-preview-embedded" in html,
+              "mobile preview script": 'id="liuksoryu-mobile-preview-script"' in html,
+              "no fourth-icon hiding selector": ".social:nth-child(n+4)" not in html,
+              "social render lock": 'id="liuksoryu-final-social-render-lock"' in html,
+              "Discord label": 'aria-label="Discord"' in html,
+              "X label": 'aria-label="X"' in html,
+              "two protected Discord SVG paths": html.count("M20.317 4.3698") == 2,
+              "canonical X SVG path": "M18.244 2.25h3.308" in html,
+              "exactly one header X SVG": html.count('aria-label="X"><svg') == 1,
+              "exactly one community X text icon": html.count('<div class="community-icon">𝕏</div>') == 1,
+              "community SVG sizing": 'community-icon svg{width:22px;height:22px;display:block}' in html,
+              "malformed Discord path absent": "M20.3 4.3A19.8" not in html,
+              "five video cards": html.count("data-video-card") == 5,
+              "video loader": "fetch('videos.json?v='+Date.now()" in html,
+              "personal profile asset": "Profile.jpg" in html,
+              "community asset": "profilediscordcommunity.png" in html,
+          }
 
-          # Core homepage structure/assets.
-          test "$(grep -oF 'data-video-card' index.html | wc -l | tr -d ' ')" -eq 5
-          grep -Fq "fetch('videos.json?v='+Date.now()" index.html
-          grep -Fq 'Profile.jpg' index.html
-          grep -Fq 'profilediscordcommunity.png' index.html
+          failed = [name for name, ok in checks.items() if not ok]
+          for name, ok in checks.items():
+              print(f"{'PASS' if ok else 'FAIL'}: {name}")
 
-          echo 'Protected homepage validation passed.'
+          if failed:
+              raise SystemExit("Homepage regression gate failed: " + ", ".join(failed))
+
+          print("Protected homepage validation passed.")
