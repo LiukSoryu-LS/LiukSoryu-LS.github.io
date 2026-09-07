@@ -18,20 +18,20 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          old = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:15px!important;height:15px!important'
-          new = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:18px!important;height:18px!important'
-          assert s.count(old) == 1
-          s = s.replace(old, new, 1)
-          oldm = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:13px!important;height:13px!important'
-          newm = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:16px!important;height:16px!important'
-          assert s.count(oldm) == 1
-          s = s.replace(oldm, newm, 1)
+          pattern = r'(\.socials \.social\[aria-label="X"\] \.liuksoryu-header-x-asset\{width:)\d+px(!important;height:)\d+px(!important)'
+          s, n1 = re.subn(pattern, r'\g<1>18px\g<2>18px\g<3>', s, count=1)
+          assert n1 == 1, f'Expected one desktop X asset rule, found {n1}'
+          mobile = r'(@media\(max-width:600px\).*?\.socials \.social\[aria-label="X"\] \.liuksoryu-header-x-asset\{width:)\d+px(!important;height:)\d+px(!important)'
+          s, n2 = re.subn(mobile, r'\g<1>16px\g<2>16px\g<3>', s, count=1, flags=re.S)
+          assert n2 == 1, f'Expected one mobile X asset rule, found {n2}'
           p.write_text(s, encoding='utf-8')
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git commit -m 'Tune X icon to balanced visual weight' || exit 0
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Tune X icon to balanced visual weight'
           git push origin HEAD:fix-x-visual-balance-final
