@@ -1,4 +1,5 @@
 name: Repair X icon geometry once
+# Temporary one-shot repair; removed after the PR is clean.
 on:
   pull_request_target:
     types: [opened, synchronize]
