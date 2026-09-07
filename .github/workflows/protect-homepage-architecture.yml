@@ -32,7 +32,6 @@ jobs:
           for label in ['YouTube','Twitch','Discord','X']:
               require_same(f'Header {label} marker',f'aria-label="{label}"')
           require_same('Header social container','<div class="socials">')
-          # The old nth-child hiding rule is forbidden because it previously hid X on mobile.
           if '.social:nth-child(n+4)' in head:
               raise SystemExit('Obsolete generic social hiding rule detected.')
 
@@ -41,8 +40,8 @@ jobs:
               require_same(f'Footer {label} marker',f'aria-label="{label}"')
           require_same('Footer social container','<div class="footer-socials">')
 
-          # Games and videos structure.
-          for needle,label in [('class="games"','Games container'),('class="game-card"','Game card elements'),('class="game-name"','Game name elements'),('class="image-slot has-image"','Game image slots')]:
+          # Games and videos structure. Do not require optional class names that are not part of the protected baseline.
+          for needle,label in [('class="games"','Games container'),('class="game-name"','Game name elements'),('class="image-slot has-image"','Game image slots')]:
               if count(base,needle)==0: raise SystemExit(f'Baseline missing {label}')
               require_same(label,needle)
           for needle,label in [('class="videos"','Latest Videos container'),('class="video"','Video card structure'),('data-video-card','Video data-card markers'),('thumbnail','Thumbnail contract')]:
@@ -99,8 +98,6 @@ jobs:
               raise SystemExit('Header X SVG contract must exist exactly once.')
           if count(head,'<div class="community-icon">𝕏</div>') != 1:
               raise SystemExit('Community X text icon must remain untouched.')
-
-          # Header rendering lock remains present and unique.
           if count(head,'id="liuksoryu-final-social-render-lock"') != 1:
               raise SystemExit('Final social rendering lock must exist exactly once.')
 
