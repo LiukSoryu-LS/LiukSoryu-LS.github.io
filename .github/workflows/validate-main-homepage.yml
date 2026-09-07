@@ -22,8 +22,9 @@ jobs:
         run: |
           from pathlib import Path
           html = Path("index.html").read_text(encoding="utf-8")
-          expected_x = "M18.244 2.25h3.308l-7.227 8.26-7.227-8.26H1.68l7.73 8.835L1.254 21.75h3.308l7.53-8.57 7.485 8.57h3.423l-7.7-8.783z"
           checks = {
+              "mobile preview lock": 'id="liuksoryu-mobile-preview-lock"' in html,
+              "mobile preview marker": "LIUKSORYU-MOBILE-PREVIEW-LOCKED" in html,
               "mobile preview toggle": 'id="mobilePreviewToggle"' in html,
               "mobile preview overlay": 'id="mobilePreviewOverlay"' in html,
               "mobile preview device": 'id="mobilePreviewDevice"' in html,
@@ -32,19 +33,26 @@ jobs:
               "mobile preview frame": 'id="mobilePreviewFrame"' in html,
               "mobile preview query": "?mobile-preview=1" in html,
               "mobile preview recursion guard": "mobile-preview-embedded" in html,
+              "mobile preview script": 'id="liuksoryu-mobile-preview-script"' in html,
               "no fourth-icon hiding selector": ".social:nth-child(n+4)" not in html,
+              "social render lock": 'id="liuksoryu-final-social-render-lock"' in html,
               "YouTube label": 'aria-label="YouTube"' in html,
               "Twitch label": 'aria-label="Twitch"' in html,
               "Discord label": 'aria-label="Discord"' in html,
               "X label": 'aria-label="X"' in html,
-              "exactly one header X SVG": html.count('aria-label="X"><svg') == 1,
-              "verified X SVG geometry": html.count(expected_x) == 1,
-              "X uses currentColor": 'aria-label="X"><svg viewBox="0 0 24 24" aria-hidden="true"><path' in html and '8.783z" fill="currentColor"' in html,
-              "community X untouched": html.count('<div class="community-icon">𝕏</div>') == 1,
+              "two protected Discord SVG paths": html.count("M20.317 4.3698") == 2,
+              "header X uses supplied asset": html.count('aria-label="X"><img class="liuksoryu-header-x-asset" src="x-icon-liuksoryu.png"') == 1,
+              "header X SVG removed": html.count('aria-label="X"><svg') == 0,
+              "community X text icon preserved": html.count('<div class="community-icon">𝕏</div>') == 1,
+              "community SVG sizing": 'community-icon svg{width:22px;height:22px;display:block}' in html,
+              "malformed Discord path absent": "M20.3 4.3A19.8" not in html,
               "five protected video cards": html.count('class="card video" data-video-card') == 5,
+              "video loader": "fetch('videos.json?v='+Date.now()" in html,
+              "personal profile asset": "Profile.jpg" in html,
               "community asset": "profilediscordcommunity.png" in html,
               "guides preserved": 'href="character-guides.html"' in html and 'href="podcasts.html"' in html and 'href="stream-suggestions.html"' in html,
               "about preserved": '<section class="section about-section" id="about">' in html,
+              "X asset file exists": Path("x-icon-liuksoryu.png").is_file(),
           }
           failed = [name for name, ok in checks.items() if not ok]
           for name, ok in checks.items():
