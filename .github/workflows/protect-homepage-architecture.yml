@@ -3,6 +3,8 @@ name: Protect homepage architecture
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -40,11 +42,11 @@ jobs:
               require_same(f'Footer {label} marker',f'aria-label="{label}"')
           require_same('Footer social container','<div class="footer-socials">')
 
-          # Games and videos structure. Do not require optional class names that are not part of the protected baseline.
+          # Games and videos structure. Match the actual card class strings used by the homepage.
           for needle,label in [('class="games"','Games container'),('class="game-name"','Game name elements'),('class="image-slot has-image"','Game image slots')]:
               if count(base,needle)==0: raise SystemExit(f'Baseline missing {label}')
               require_same(label,needle)
-          for needle,label in [('class="videos"','Latest Videos container'),('class="video"','Video card structure'),('data-video-card','Video data-card markers'),('thumbnail','Thumbnail contract')]:
+          for needle,label in [('class="videos"','Latest Videos container'),('class="card video"','Video card structure'),('data-video-card','Video data-card markers'),('thumbnail','Thumbnail contract')]:
               if count(base,needle)==0: raise SystemExit(f'Baseline missing {label}')
               require_same(label,needle)
           if count(base,'data-video-card')!=5: raise SystemExit('Baseline Latest Videos card count is not 5.')
