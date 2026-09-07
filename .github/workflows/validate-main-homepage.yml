@@ -40,7 +40,7 @@ jobs:
               "Twitch label": 'aria-label="Twitch"' in html,
               "Discord label": 'aria-label="Discord"' in html,
               "X label": 'aria-label="X"' in html,
-              "two protected Discord SVG paths": html.count("M20.317 4.3698") == 2,
+              "two protected Discord SVG paths": html.count("M524.531,69.836") == 2,
               "header X uses supplied asset": html.count('aria-label="X"><img class="liuksoryu-header-x-asset" src="x-icon-liuksoryu.png"') == 1,
               "header X SVG removed": html.count('aria-label="X"><svg') == 0,
               "community X text icon preserved": html.count('<div class="community-icon">𝕏</div>') == 1,
