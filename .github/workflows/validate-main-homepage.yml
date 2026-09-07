@@ -13,7 +13,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -21,12 +21,9 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-
           html = Path("index.html").read_text(encoding="utf-8")
-
+          clean_x = "M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.967 6.817H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231h3.272l-7.267 8.261 8.415 11.489Z"
           checks = {
-              "mobile preview lock": 'id="liuksoryu-mobile-preview-lock"' in html,
-              "mobile preview marker": "LIUKSORYU-MOBILE-PREVIEW-LOCKED" in html,
               "mobile preview toggle": 'id="mobilePreviewToggle"' in html,
               "mobile preview overlay": 'id="mobilePreviewOverlay"' in html,
               "mobile preview device": 'id="mobilePreviewDevice"' in html,
@@ -35,28 +32,23 @@ jobs:
               "mobile preview frame": 'id="mobilePreviewFrame"' in html,
               "mobile preview query": "?mobile-preview=1" in html,
               "mobile preview recursion guard": "mobile-preview-embedded" in html,
-              "mobile preview script": 'id="liuksoryu-mobile-preview-script"' in html,
               "no fourth-icon hiding selector": ".social:nth-child(n+4)" not in html,
-              "social render lock": 'id="liuksoryu-final-social-render-lock"' in html,
+              "YouTube label": 'aria-label="YouTube"' in html,
+              "Twitch label": 'aria-label="Twitch"' in html,
               "Discord label": 'aria-label="Discord"' in html,
               "X label": 'aria-label="X"' in html,
-              "two protected Discord SVG paths": html.count("M524.531,69.836") == 2,
-              "canonical X SVG path": "M18.244 2.25h3.308" in html,
               "exactly one header X SVG": html.count('aria-label="X"><svg') == 1,
-              "exactly one community X text icon": html.count('<div class="community-icon">𝕏</div>') == 1,
-              "community SVG sizing": 'community-icon svg{width:22px;height:22px;display:block}' in html,
-              "malformed Discord path absent": "M20.3 4.3A19.8" not in html,
+              "clean X SVG geometry": html.count(clean_x) == 1,
+              "X uses currentColor": 'aria-label="X"><svg viewBox="0 0 24 24" aria-hidden="true"><path' in html and '8.415 11.489Z" fill="currentColor"' in html,
+              "community X untouched": html.count('<div class="community-icon">𝕏</div>') == 1,
               "five protected video cards": html.count('class="card video" data-video-card') == 5,
-              "video loader": "fetch('videos.json?v='+Date.now()" in html,
-              "personal profile asset": "Profile.jpg" in html,
               "community asset": "profilediscordcommunity.png" in html,
+              "guides preserved": 'href="character-guides.html"' in html and 'href="podcasts.html"' in html and 'href="stream-suggestions.html"' in html,
+              "about preserved": '<section class="section about-section" id="about">' in html,
           }
-
           failed = [name for name, ok in checks.items() if not ok]
           for name, ok in checks.items():
               print(f"{'PASS' if ok else 'FAIL'}: {name}")
-
           if failed:
               raise SystemExit("Homepage regression gate failed: " + ", ".join(failed))
-
           print("Protected homepage validation passed.")

@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR and base
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -36,8 +36,9 @@ jobs:
                   raise SystemExit(f'{label} changed: base={a}, PR={b}')
 
           # Header social architecture.
-          for label in ['YouTube', 'Twitch', 'Discord', 'X']:
+          for label in ['YouTube', 'Twitch', 'Discord']:
               require_same(f'Header {label} marker', f'aria-label="{label}"')
+          require_same('Header X marker', 'aria-label="X"')
           require_same('Header social container', '<div class="socials">')
           if '.social:nth-child(n+4)' in head:
               raise SystemExit('Obsolete generic social hiding rule detected.')
