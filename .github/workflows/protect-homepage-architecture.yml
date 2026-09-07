@@ -99,7 +99,7 @@ jobs:
           # Final social SVG rendering contract.
           required = [
               'id="liuksoryu-final-social-render-lock"',
-              'M20.317 4.3698',
+              'M524.531,69.836',
               'M18.244 2.25h3.308',
               'aria-label="X"><svg',
               'fill="currentColor"'
@@ -107,8 +107,8 @@ jobs:
           for needle in required:
               if count(head, needle) == 0:
                   raise SystemExit(f'Missing final social rendering contract: {needle}')
-          if count(head, 'M20.317 4.3698') < 2:
-              raise SystemExit('Canonical Discord path must exist in both header and community Discord icons.')
+          if count(head, 'M524.531,69.836') < 2:
+              raise SystemExit('Stable Discord path must exist in both header and community Discord icons.')
           if count(head, 'M20.3 4.3A19.8'):
               raise SystemExit('Malformed legacy Discord path detected.')
           if count(head, 'aria-label="X"><svg') != 1:
