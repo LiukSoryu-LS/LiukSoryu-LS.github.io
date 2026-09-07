@@ -35,8 +35,9 @@ jobs:
               if a != b:
                   raise SystemExit(f'{label} changed: base={a}, PR={b}')
 
-          # Header social architecture.
-          for label in ['YouTube', 'Twitch', 'Discord', 'X']:
+          # Header social architecture. X is validated separately below because its
+          # dedicated rendering lock contains additional X-specific selectors.
+          for label in ['YouTube', 'Twitch', 'Discord']:
               require_same(f'Header {label} marker', f'aria-label="{label}"')
           require_same('Header social container', '<div class="socials">')
           if '.social:nth-child(n+4)' in head:
