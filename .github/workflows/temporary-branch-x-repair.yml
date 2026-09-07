@@ -23,10 +23,11 @@ jobs:
           s = p.read_text(encoding='utf-8')
           pattern = r'(\.socials \.social\[aria-label="X"\] \.liuksoryu-header-x-asset\{width:)\d+px(!important;height:)\d+px(!important)'
           s, n1 = re.subn(pattern, r'\g<1>18px\g<2>18px\g<3>', s, count=1)
-          assert n1 == 1, f'Expected one desktop X asset rule, found {n1}'
           mobile = r'(@media\(max-width:600px\).*?\.socials \.social\[aria-label="X"\] \.liuksoryu-header-x-asset\{width:)\d+px(!important;height:)\d+px(!important)'
           s, n2 = re.subn(mobile, r'\g<1>16px\g<2>16px\g<3>', s, count=1, flags=re.S)
-          assert n2 == 1, f'Expected one mobile X asset rule, found {n2}'
+          print('desktop rules changed:', n1)
+          print('mobile rules changed:', n2)
+          assert n1 == 1 and n2 == 1, 'Could not locate both X asset size rules'
           p.write_text(s, encoding='utf-8')
           PY
           git config user.name 'github-actions[bot]'
