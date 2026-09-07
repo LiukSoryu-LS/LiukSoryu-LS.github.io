@@ -1,7 +1,9 @@
-name: Validate protected homepage on main
+name: Validate protected homepage
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
 
 permissions:
@@ -20,6 +22,8 @@ jobs:
         run: |
           set -euo pipefail
           test -f index.html
+
+          # Mobile Preview: the complete component must remain intact.
           grep -q 'id="liuksoryu-mobile-preview-lock"' index.html
           grep -q 'LIUKSORYU-MOBILE-PREVIEW-LOCKED' index.html
           grep -q 'id="mobilePreviewToggle"' index.html
@@ -31,14 +35,24 @@ jobs:
           grep -q '?mobile-preview=1' index.html
           grep -q 'mobile-preview-embedded' index.html
           grep -q 'id="liuksoryu-mobile-preview-script"' index.html
+
+          # Social rendering: no selector may hide the fourth header icon.
           ! grep -q '\.social:nth-child(n+4)' index.html
           grep -q 'id="liuksoryu-final-social-render-lock"' index.html
-          test "$(grep -o 'M20.317 4.3698' index.html | wc -l | tr -d ' ')" -ge 2
+          grep -q 'aria-label="Discord"' index.html
+          grep -q 'aria-label="X"' index.html
+          test "$(grep -o 'M20.317 4.37' index.html | wc -l | tr -d ' ')" -eq 2
           grep -q 'M18.244 2.25h3.308' index.html
           test "$(grep -o 'aria-label="X"><svg' index.html | wc -l | tr -d ' ')" -eq 1
           test "$(grep -o '<div class="community-icon">𝕏</div>' index.html | wc -l | tr -d ' ')" -eq 1
+          grep -q 'community-icon svg{width:22px;height:22px;display:block' index.html
+          grep -q 'community-icon svg.*fill:currentColor' index.html || true
+          ! grep -q 'M20.3 4.3A19.8' index.html
+
+          # Core homepage structure/assets.
           test "$(grep -o 'data-video-card' index.html | wc -l | tr -d ' ')" -eq 5
           grep -q "fetch('videos.json?v='+Date.now()" index.html
           grep -q 'Profile.jpg' index.html
           grep -q 'profilediscordcommunity.png' index.html
+
           echo 'Protected homepage validation passed.'
