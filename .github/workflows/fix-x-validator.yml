@@ -1,0 +1,35 @@
+name: Fix X validator contract
+on:
+  push:
+    branches: [fix-x-icon-stable-final]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix-x-icon-stable-final
+          fetch-depth: 0
+      - name: Update X validation rules
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.github/workflows/protect-homepage-architecture.yml')
+          s=p.read_text(encoding='utf-8')
+          old='''              'aria-label="X"><img class="liuksoryu-header-x-asset" src="x-icon-liuksoryu.png"',\n              'fill="currentColor"'\n'''
+          new='''              'aria-label="X"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">',\n              'M18.244 2.25h3.308',\n              'fill="currentColor"'\n'''
+          if old not in s:
+              raise SystemExit('Old X required block not found')
+          s=s.replace(old,new,1)
+          s=s.replace("          if count(head, 'aria-label=\"X\"><svg') != 0:\n              raise SystemExit('Header X SVG must remain replaced by the supplied branded asset.')\n", "          if count(head, 'aria-label=\"X\"><svg') != 1:\n              raise SystemExit('Header X must use exactly one canonical inline SVG.')\n          if count(head, 'x-icon-liuksoryu.png') != 0 or count(head, 'X icon.png') != 0:\n              raise SystemExit('Obsolete uploaded X image assets must not be used by the header.')\n")
+          p.write_text(s,encoding='utf-8')
+          PY
+          rm -f .github/workflows/fix-x-validator.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/protect-homepage-architecture.yml .github/workflows/fix-x-validator.yml
+          git commit -m 'Lock canonical X SVG in homepage protection'
+          git push origin HEAD:fix-x-icon-stable-final
