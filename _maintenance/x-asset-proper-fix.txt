@@ -1,0 +1,1 @@
+The supplied square X artwork must be rendered as a fixed 22px x 22px image centered inside the existing header social button. Do not scale below 22px; preserve the full artwork within the box using object-fit: contain.
