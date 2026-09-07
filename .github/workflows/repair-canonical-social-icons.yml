@@ -1,0 +1,66 @@
+name: One-time canonical social repair
+on:
+  push:
+    branches: ["repair-canonical-social-icons"]
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply deterministic repair
+        shell: python
+        run: |
+          from pathlib import Path
+          import re, sys
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          discord='M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037A19.7363 19.7363 0 0 0 3.677 4.3698a.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0095c.1202.099.246.198.3728.2924a.077.077 0 0 1-.0066.1276c-.6-.35-1.227-.648-1.873-.8914a.0766.0766 0 0 0-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 0 0 .0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 0 0 .0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 0 0-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.333.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z'
+          x='M18.244 2.25h3.308l-7.227 8.26-7.227-8.26H1.68l7.73 8.835L1.254 21.75h3.308l7.53-8.57 7.485 8.57h3.423l-7.7-8.783z'
+          header_pat=r'(<a class="social"[^>]*aria-label="Discord"><svg[^>]*><path d=")[^"]+("/></svg></a>)'
+          s,n=re.subn(header_pat,lambda m:m.group(1)+discord+m.group(2),s,count=1)
+          if n!=1: sys.exit(f'header Discord replacement failed: {n}')
+          community_pat=r'(<a class="card community-card" href="https://discord\.gg/DwHKtRMX2g"[^>]*>.*?<div class="community-icon"><svg[^>]*><path d=")[^"]+("/></svg>)'
+          s,n=re.subn(community_pat,lambda m:m.group(1)+discord+m.group(2),s,count=1,flags=re.S)
+          if n!=1: sys.exit(f'community Discord replacement failed: {n}')
+          lock='''<style id="liuksoryu-canonical-social-lock">/* LIUKSORYU-CANONICAL-SOCIAL-LOCK */
+.socials{display:flex!important;align-items:center!important;gap:8px!important;flex:0 0 auto!important;min-width:0!important;visibility:visible!important;opacity:1!important}
+.socials .social{display:grid!important;place-items:center!important;box-sizing:border-box!important;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;max-width:44px!important;max-height:44px!important;flex:0 0 44px!important;padding:0!important;margin:0!important;border:2px solid transparent!important;border-radius:14px!important;color:#fff!important;visibility:visible!important;opacity:1!important;overflow:visible!important;position:relative!important}
+.socials .social svg{display:block!important;width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;max-width:22px!important;max-height:22px!important;flex:0 0 22px!important;margin:0!important;padding:0!important;overflow:visible!important;visibility:visible!important;opacity:1!important;fill:currentColor!important;color:#fff!important}
+.socials .social[aria-label="YouTube"] svg{width:24px!important;height:24px!important;flex-basis:24px!important}
+.socials .social[aria-label="X"] svg{width:22px!important;height:22px!important;flex-basis:22px!important}
+.community-icon{display:grid!important;place-items:center!important;overflow:visible!important;color:#fff!important}
+.community-icon svg{display:block!important;width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;max-width:22px!important;max-height:22px!important;fill:currentColor!important;color:#fff!important;overflow:visible!important}
+@media(max-width:600px){.socials{gap:5px!important}.socials .social{width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important;max-width:36px!important;max-height:36px!important;flex-basis:36px!important;border-radius:11px!important}.socials .social svg{width:19px!important;height:19px!important;min-width:19px!important;min-height:19px!important;max-width:19px!important;max-height:19px!important;flex-basis:19px!important}.socials .social[aria-label="YouTube"] svg{width:21px!important;height:21px!important;flex-basis:21px!important}.socials .social[aria-label="X"] svg{width:19px!important;height:19px!important;flex-basis:19px!important}}
+</style>'''
+          if 'id="liuksoryu-canonical-social-lock"' not in s:
+              s=s.replace('</head>',lock+'</head>',1)
+          checks=[
+            ('canonical lock',s.count('id="liuksoryu-canonical-social-lock"')==1),
+            ('Discord path',s.count(discord)>=2),
+            ('X path',s.count(x)>=1),
+            ('no nth-child social rule','.social:nth-child(n+4)' not in s),
+            ('mobile preview lock','id="liuksoryu-mobile-preview-lock"' in s and 'LIUKSORYU-MOBILE-PREVIEW-LOCKED' in s),
+            ('header social count',s.count('class="social"')==4),
+          ]
+          bad=[name for name,ok in checks if not ok]
+          if bad: sys.exit('Validation failed: '+', '.join(bad))
+          p.write_text(s,encoding='utf-8')
+      - name: Validate repaired source
+        run: |
+          grep -q 'LIUKSORYU-CANONICAL-SOCIAL-LOCK' index.html
+          test "$(grep -o 'LIUKSORYU-CANONICAL-SOCIAL-LOCK' index.html | wc -l)" -eq 1
+          test "$(grep -o 'M20.317 4.3698' index.html | wc -l)" -ge 2
+          grep -q 'M18.244 2.25h3.308' index.html
+          ! grep -q '.social:nth-child(n+4)' index.html
+          grep -q 'id="liuksoryu-mobile-preview-lock"' index.html
+          test "$(grep -o 'class="social"' index.html | wc -l)" -eq 4
+      - name: Commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Canonicalize protected social icon rendering'
+          git push
