@@ -1,0 +1,40 @@
+name: Repair X asset now
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: github.event.pull_request.head.ref == 'fix-x-asset-now' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix-x-asset-now
+          fetch-depth: 0
+      - name: Use uploaded X icon asset
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = 'src="x-icon-liuksoryu.png" alt="X"'
+          new = 'src="X icon.png" alt="X"'
+          if old not in s:
+              raise SystemExit('Expected existing X asset reference was not found')
+          s = s.replace(old, new, 1)
+          marker = 'id="liuksoryu-uploaded-x-asset-lock"'
+          if marker not in s:
+              css = '<style id="liuksoryu-uploaded-x-asset-lock">.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:20px!important;height:20px!important;max-width:20px!important;max-height:20px!important;display:block!important;object-fit:contain!important;object-position:center!important;margin:0!important;padding:0!important;transform:none!important}@media(max-width:600px){.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:18px!important;height:18px!important;max-width:18px!important;max-height:18px!important}}</style>'
+              s = s.replace('</head>', css + '</head>', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+          rm -f .github/workflows/repair-x-asset-now.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html .github/workflows/repair-x-asset-now.yml
+          git diff --cached --quiet && exit 0
+          git commit -m 'Use uploaded X icon asset'
+          git push origin HEAD:fix-x-asset-now
