@@ -10,8 +10,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Tune only X header visual scale
-        shell: bash
-        run: |
-          echo "Final X balance is handled by the trusted PR repair workflow."
-          exit 0
+      - name: Final trigger marker
+        run: echo "Final X balance repair requested"
