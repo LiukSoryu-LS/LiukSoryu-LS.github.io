@@ -8,4 +8,4 @@ jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "X final repair trigger"
+      - run: echo "X final repair trigger - explicit bounds pass"
