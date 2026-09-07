@@ -1,0 +1,60 @@
+name: Temporary X header visual scale repair
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Apply exact X visual scale and remove trigger
+        env:
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$PR_BRANCH"
+          git checkout -B "$PR_BRANCH" "origin/$PR_BRANCH"
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:21px!important;height:21px!important;display:block!important;object-fit:contain!important;flex:none!important;max-width:100%!important;max-height:100%!important}'
+          new = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:15px!important;height:15px!important;display:block!important;object-fit:contain!important;flex:none!important;max-width:15px!important;max-height:15px!important}'
+          if old not in s:
+              raise SystemExit('Expected current X asset size rule not found')
+          s = s.replace(old, new, 1)
+          mobile_old = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:18px!important;height:18px!important;display:block!important;object-fit:contain!important;flex:none!important;max-width:100%!important;max-height:100%!important}'
+          mobile_new = '.socials .social[aria-label="X"] .liuksoryu-header-x-asset{width:13px!important;height:13px!important;display:block!important;object-fit:contain!important;flex:none!important;max-width:13px!important;max-height:13px!important}'
+          if mobile_old not in s:
+              raise SystemExit('Expected current mobile X asset size rule not found')
+          s = s.replace(mobile_old, mobile_new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+          rm -f _maintenance/x-header-visual-scale-trigger.txt
+          git add index.html _maintenance/x-header-visual-scale-trigger.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Tune branded X visual scale'
+          git push --force-with-lease origin "$PR_BRANCH"
+      - name: Remove temporary workflow from main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B main origin/main
+          rm -f .github/workflows/repair-x-header-visual-scale-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -u .github/workflows/repair-x-header-visual-scale-once.yml
+          git commit -m 'Remove temporary X visual scale workflow' || true
+          git push origin main
