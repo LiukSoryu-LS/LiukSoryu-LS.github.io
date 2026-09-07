@@ -38,7 +38,7 @@ jobs:
           test "$(grep -o 'aria-label="X"><svg' index.html | wc -l | tr -d ' ')" -eq 1
           test "$(grep -o '<div class="community-icon">𝕏</div>' index.html | wc -l | tr -d ' ')" -eq 1
           test "$(grep -o 'data-video-card' index.html | wc -l | tr -d ' ')" -eq 5
-          grep -q 'fetch(\x27videos.json?v=\x27+Date.now()' index.html
+          grep -q "fetch('videos.json?v='+Date.now()" index.html
           grep -q 'Profile.jpg' index.html
           grep -q 'profilediscordcommunity.png' index.html
           echo 'Protected homepage validation passed.'
