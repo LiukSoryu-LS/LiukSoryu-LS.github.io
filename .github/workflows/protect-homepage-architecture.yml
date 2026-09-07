@@ -28,12 +28,13 @@ jobs:
               a,b=count(base,needle),count(head,needle)
               if a!=b: raise SystemExit(f'{label} changed: base={a}, PR={b}')
 
-          # Header: four fixed platforms. The dedicated scoped rendering lock protects their visual behavior.
+          # Header: four fixed platforms. The dedicated final rendering lock protects their visual behavior.
           for label in ['YouTube','Twitch','Discord','X']:
               require_same(f'Header {label} marker',f'aria-label="{label}"')
           require_same('Header social container','<div class="socials">')
-          # Legacy nth-child CSS is tolerated only when unchanged; it must never be introduced or altered.
-          require_same('Header legacy nth-child selector count','.social:nth-child(n+4)')
+          # The old nth-child hiding rule is forbidden because it previously hid X on mobile.
+          if '.social:nth-child(n+4)' in head:
+              raise SystemExit('Obsolete generic social hiding rule detected.')
 
           # Footer: four explicit platforms.
           for label in ['Instagram','TikTok','Bilibili','Spotify']:
@@ -74,8 +75,7 @@ jobs:
           for piece in source_copy:
               if piece not in head_about: raise SystemExit(f'Protected About copy missing: {piece}')
 
-          # Mobile preview: if already present on main, every protected marker becomes immutable.
-          # This permits the one-time restoration while preventing later removal or duplication.
+          # Mobile Preview contract is immutable once present on main.
           mobile=[
               'LIUKSORYU-MOBILE-PREVIEW-LOCKED','id="mobilePreviewToggle"','id="mobilePreviewOverlay"','id="mobilePreviewDevice"',
               'id="mobilePreviewLabel"','id="mobilePreviewClose"','id="mobilePreviewFrame"','?mobile-preview=1',
@@ -87,13 +87,22 @@ jobs:
               elif b!=a:
                   raise SystemExit(f'Protected Mobile Preview marker changed: {needle} base={a} PR={b}')
 
-          # Header rendering lock is immutable once present.
-          for needle in ['id="liuksoryu-header-icon-lock"','.socials .social{display:grid!important','.socials .social svg{width:20px!important']:
-              a,b=count(base,needle),count(head,needle)
-              if a==0:
-                  if b not in (0,1): raise SystemExit(f'Invalid new header lock marker count for {needle}: {b}')
-              elif b!=a:
-                  raise SystemExit(f'Protected header icon lock changed: {needle} base={a} PR={b}')
+          # Final social SVG contract. These exact geometry/fill contracts prevent regression on desktop and mobile.
+          required=['id="liuksoryu-final-social-render-lock"','M20.317 4.3698','M18.244 2.25h3.308','aria-label="X"><svg','fill="currentColor"']
+          for needle in required:
+              if count(head,needle)==0: raise SystemExit(f'Missing final social rendering contract: {needle}')
+          if count(head,'M20.317 4.3698') < 2:
+              raise SystemExit('Canonical Discord path must exist in both header and community Discord icons.')
+          if count(head,'M20.3 4.3A19.8'):
+              raise SystemExit('Malformed legacy Discord path detected.')
+          if count(head,'aria-label="X"><svg') != 1:
+              raise SystemExit('Header X SVG contract must exist exactly once.')
+          if count(head,'<div class="community-icon">𝕏</div>') != 1:
+              raise SystemExit('Community X text icon must remain untouched.')
+
+          # Header rendering lock remains present and unique.
+          if count(head,'id="liuksoryu-final-social-render-lock"') != 1:
+              raise SystemExit('Final social rendering lock must exist exactly once.')
 
           print('Homepage protection contract passed.')
           PY
