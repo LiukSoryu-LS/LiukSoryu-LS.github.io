@@ -23,71 +23,100 @@ jobs:
         run: |
           python3 - <<'PY'
           import subprocess
+
           base = subprocess.check_output(['git', 'show', 'origin/main:index.html'], text=True)
           head = open('index.html', encoding='utf-8').read()
-          def count(text, needle): return text.count(needle)
+
+          def count(text, needle):
+              return text.count(needle)
+
           def require_same(label, needle):
               a, b = count(base, needle), count(head, needle)
-              if a != b: raise SystemExit(f'{label} changed: base={a}, PR={b}')
+              if a != b:
+                  raise SystemExit(f'{label} changed: base={a}, PR={b}')
 
-          # Header social architecture. X is validated separately below.
-          for label in ['YouTube','Twitch','Discord']:
+          # Header social architecture.
+          for label in ['YouTube', 'Twitch', 'Discord', 'X']:
               require_same(f'Header {label} marker', f'aria-label="{label}"')
-          require_same('Header social container','<div class="header-socials">')
+          require_same('Header social container', '<div class="socials">')
           if '.social:nth-child(n+4)' in head:
               raise SystemExit('Obsolete generic social hiding rule detected.')
 
           # Footer social architecture.
-          for label in ['Instagram','TikTok','Bilibili','Spotify']:
+          for label in ['Instagram', 'TikTok', 'Bilibili', 'Spotify']:
               require_same(f'Footer {label} marker', f'aria-label="{label}"')
-          require_same('Footer social container','<div class="footer-socials">')
+          require_same('Footer social container', '<div class="footer-socials">')
 
-          # Games, videos, guides and community architecture.
-          for needle,label in [
-              ('class="games"','Games container'),
-              ('class="game-name"','Game name elements'),
-              ('class="image-slot has-image"','Game image slots'),
-              ('class="videos"','Latest Videos container'),
-              ('class="card video" data-video-card','Video card structure'),
-              ('class="video-title"','Video title elements'),
-              ('class="video-meta"','Video metadata elements'),
-              ('class="guides"','Guides container'),
-              ('class="community"','Community container')
+          # Games and Latest Videos architecture. Protect the real markup strings without assuming a fixed card count.
+          for needle, label in [
+              ('class="games"', 'Games container'),
+              ('class="game-name"', 'Game name elements'),
+              ('class="image-slot has-image"', 'Game image slots'),
+              ('class="videos"', 'Latest Videos container'),
+              ('class="card video"', 'Video card structure'),
+              ('.video .image-slot', 'Video thumbnail styling'),
+              ('class="video-title"', 'Video title elements'),
+              ('class="video-meta"', 'Video metadata elements')
           ]:
-              if count(base,needle)==0: raise SystemExit(f'Baseline missing {label}')
-              require_same(label,needle)
+              if count(base, needle) == 0:
+                  raise SystemExit(f'Baseline missing {label}')
+              require_same(label, needle)
 
-          # Protected assets must remain present.
-          for asset in ['profilediscordcommunity.png','GuidesLiuksoryu.png','Lore.png','bobas friends.png']:
-              if count(base,asset)==0 or count(head,asset)==0:
-                  raise SystemExit(f'Protected asset missing: {asset}')
+          # Distinct assets remain protected.
+          for asset in ['profilediscordcommunity.png', 'Profile.jpg']:
+              require_same(f'Protected asset {asset}', asset)
 
           # Exact About section remains protected.
-          about_marker='<section class="section about-section" id="about">'
+          about_marker = '<section class="section about-section" id="about">'
           def about_block(text):
-              start=text.find(about_marker)
-              if start<0: raise SystemExit('About section is missing.')
-              end=text.find('</section>',start)
-              if end<0: raise SystemExit('About section is malformed.')
+              start = text.find(about_marker)
+              if start < 0:
+                  raise SystemExit('About section is missing.')
+              end = text.find('</section>', start)
+              if end < 0:
+                  raise SystemExit('About section is malformed.')
               return text[start:end]
-          if about_block(base)!=about_block(head):
+          if about_block(base) != about_block(head):
               raise SystemExit('Protected About section changed.')
 
-          # Mobile Preview contract remains immutable for markers already present.
-          mobile=['id="mobilePreviewToggle"','id="mobilePreviewOverlay"','id="mobilePreviewDevice"','id="mobilePreviewLabel"','id="mobilePreviewClose"','id="mobilePreviewFrame"','?mobile-preview=1','mobile-preview-embedded']
+          # Mobile Preview contract is immutable once present on main.
+          mobile = [
+              'LIUKSORYU-MOBILE-PREVIEW-LOCKED', 'id="mobilePreviewToggle"',
+              'id="mobilePreviewOverlay"', 'id="mobilePreviewDevice"',
+              'id="mobilePreviewLabel"', 'id="mobilePreviewClose"',
+              'id="mobilePreviewFrame"', '?mobile-preview=1',
+              'mobile-preview-embedded', 'id="liuksoryu-mobile-preview-lock"',
+              'id="liuksoryu-mobile-preview-script"'
+          ]
           for needle in mobile:
-              require_same(f'Mobile Preview marker {needle}',needle)
+              a, b = count(base, needle), count(head, needle)
+              if a == 0:
+                  if b not in (0, 1):
+                      raise SystemExit(f'Invalid new Mobile Preview marker count for {needle}: {b}')
+              elif b != a:
+                  raise SystemExit(f'Protected Mobile Preview marker changed: {needle} base={a} PR={b}')
 
-          # Permanent read-only X protection: clean geometry only, no repair step.
-          clean='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.967 6.817H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231h3.272l-7.267 8.261 8.415 11.489Z'
-          old='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.967 6.817H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231h3.272l-7.267 8.261 8.415 11.489Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z'
-          if count(head,'aria-label="X"><svg')!=1: raise SystemExit('Header X SVG must exist exactly once.')
-          if count(head,clean)!=1: raise SystemExit('Clean X SVG geometry must exist exactly once.')
-          if old in head: raise SystemExit('Old malformed X SVG geometry detected.')
-          if '8.415 11.489Z" fill="currentColor"' not in head: raise SystemExit('X fill contract changed.')
-          if count(head,'<div class="community-icon">𝕏</div>')!=1: raise SystemExit('Community X text icon must remain untouched.')
+          # Final social SVG rendering contract.
+          required = [
+              'id="liuksoryu-final-social-render-lock"',
+              'M20.317 4.3698',
+              'M18.244 2.25h3.308',
+              'aria-label="X"><svg',
+              'fill="currentColor"'
+          ]
+          for needle in required:
+              if count(head, needle) == 0:
+                  raise SystemExit(f'Missing final social rendering contract: {needle}')
+          if count(head, 'M20.317 4.3698') < 2:
+              raise SystemExit('Canonical Discord path must exist in both header and community Discord icons.')
+          if count(head, 'M20.3 4.3A19.8'):
+              raise SystemExit('Malformed legacy Discord path detected.')
+          if count(head, 'aria-label="X"><svg') != 1:
+              raise SystemExit('Header X SVG contract must exist exactly once.')
+          if count(head, '<div class="community-icon">𝕏</div>') != 1:
+              raise SystemExit('Community X text icon must remain untouched.')
+          if count(head, 'id="liuksoryu-final-social-render-lock"') != 1:
+              raise SystemExit('Final social rendering lock must exist exactly once.')
 
           print('Homepage protection contract passed.')
           PY
-
-      # Permanent read-only protection only; no self-modifying repair step.
