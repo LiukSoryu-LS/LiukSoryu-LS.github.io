@@ -1,1 +1,1 @@
-Fix header X visual scale only.
+Fix header X visual scale only — trigger synchronize.
