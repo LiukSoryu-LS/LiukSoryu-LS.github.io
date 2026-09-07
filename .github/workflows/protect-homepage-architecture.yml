@@ -23,84 +23,99 @@ jobs:
         run: |
           python3 - <<'PY'
           import subprocess
-          base = subprocess.check_output(['git','show','origin/main:index.html'], text=True)
-          head = open('index.html', encoding='utf-8').read()
-          def count(text, needle): return text.count(needle)
-          def require_same(label, needle):
-              a,b=count(base,needle),count(head,needle)
-              if a!=b: raise SystemExit(f'{label} changed: base={a}, PR={b}')
 
-          # Header: four fixed platforms. The dedicated final rendering lock protects their visual behavior.
-          for label in ['YouTube','Twitch','Discord','X']:
-              require_same(f'Header {label} marker',f'aria-label="{label}"')
-          require_same('Header social container','<div class="socials">')
+          base = subprocess.check_output(['git', 'show', 'origin/main:index.html'], text=True)
+          head = open('index.html', encoding='utf-8').read()
+
+          def count(text, needle):
+              return text.count(needle)
+
+          def require_same(label, needle):
+              a, b = count(base, needle), count(head, needle)
+              if a != b:
+                  raise SystemExit(f'{label} changed: base={a}, PR={b}')
+
+          # Header social architecture.
+          for label in ['YouTube', 'Twitch', 'Discord', 'X']:
+              require_same(f'Header {label} marker', f'aria-label="{label}"')
+          require_same('Header social container', '<div class="socials">')
           if '.social:nth-child(n+4)' in head:
               raise SystemExit('Obsolete generic social hiding rule detected.')
 
-          # Footer: four explicit platforms.
-          for label in ['Instagram','TikTok','Bilibili','Spotify']:
-              require_same(f'Footer {label} marker',f'aria-label="{label}"')
-          require_same('Footer social container','<div class="footer-socials">')
+          # Footer social architecture.
+          for label in ['Instagram', 'TikTok', 'Bilibili', 'Spotify']:
+              require_same(f'Footer {label} marker', f'aria-label="{label}"')
+          require_same('Footer social container', '<div class="footer-socials">')
 
-          # Games and videos structure. Match the actual card class strings used by the homepage.
-          for needle,label in [('class="games"','Games container'),('class="game-name"','Game name elements'),('class="image-slot has-image"','Game image slots')]:
-              if count(base,needle)==0: raise SystemExit(f'Baseline missing {label}')
-              require_same(label,needle)
-          for needle,label in [('class="videos"','Latest Videos container'),('class="card video"','Video card structure'),('data-video-card','Video data-card markers'),('thumbnail','Thumbnail contract')]:
-              if count(base,needle)==0: raise SystemExit(f'Baseline missing {label}')
-              require_same(label,needle)
-          if count(base,'data-video-card')!=5: raise SystemExit('Baseline Latest Videos card count is not 5.')
+          # Games and Latest Videos architecture. These strings match the actual homepage markup/CSS.
+          for needle, label in [
+              ('class="games"', 'Games container'),
+              ('class="game-name"', 'Game name elements'),
+              ('class="image-slot has-image"', 'Game image slots'),
+              ('class="videos"', 'Latest Videos container'),
+              ('class="card video"', 'Video card structure'),
+              ('.video .image-slot', 'Video thumbnail styling'),
+              ('class="video-title"', 'Video title elements'),
+              ('class="video-meta"', 'Video metadata elements')
+          ]:
+              if count(base, needle) == 0:
+                  raise SystemExit(f'Baseline missing {label}')
+              require_same(label, needle)
+
+          # Protect the complete About section copy rather than relying on brittle text counts.
+          about_marker = '<section class="section about-section" id="about">'
+          def about_block(text):
+              start = text.find(about_marker)
+              if start < 0:
+                  raise SystemExit('About section is missing.')
+              end = text.find('</section>', start)
+              if end < 0:
+                  raise SystemExit('About section is malformed.')
+              return text[start:end]
+          if about_block(base) != about_block(head):
+              raise SystemExit('Protected About section changed.')
 
           # Distinct assets remain protected.
-          for asset in ['profilediscordcommunity.png','Profile.jpg']:
-              require_same(f'Protected asset {asset}',asset)
-
-          # Exact About copy remains protected.
-          about_marker='<section class="section about-section" id="about">'
-          def about_block(text):
-              start=text.find(about_marker)
-              if start<0: raise SystemExit('About section is missing.')
-              end=text.find('</section>',start)
-              if end<0: raise SystemExit('About section is malformed.')
-              return text[start:end]
-          head_about=about_block(head)
-          source_copy=[
-              'The games that shaped my childhood? <strong>Final Fantasy IX, The Legend of Dragoon, and Kingdom Hearts.</strong> 💜',
-              "I've been an RPG lover through and through ever since. I'm also a <strong>beginner MTG player</strong>, and I have a deep passion for games with intricate lore, fascinating characters, and worlds that feel like there's always something more to discover.",
-              '<p>As for me?</p>','<strong>A little bit messy. A little bit fruity. A little bit shy.</strong>',
-              'But always curious, always passionate, and probably overthinking some piece of game lore somewhere. 😂',
-              "I have a pretty strong sense of morality and I can't stand injustice or discrimination. I want this to be a space where people can enjoy games, talk about stories, share theories, and just be themselves without feeling judged.",
-              '<p>And then there\'s the streaming...</p>','<strong>Stream mayhem is never the same twice.</strong>',
-              '<p>Sometimes there\'s a plan. Sometimes there absolutely isn\'t. Sometimes everything works perfectly.</p>',
-              '<p>And sometimes... well... <strong>we improvise.</strong> 😂</p>','<p>So be prepared for the unexpected.</p>']
-          for piece in source_copy:
-              if piece not in head_about: raise SystemExit(f'Protected About copy missing: {piece}')
+          for asset in ['profilediscordcommunity.png', 'Profile.jpg']:
+              require_same(f'Protected asset {asset}', asset)
 
           # Mobile Preview contract is immutable once present on main.
-          mobile=[
-              'LIUKSORYU-MOBILE-PREVIEW-LOCKED','id="mobilePreviewToggle"','id="mobilePreviewOverlay"','id="mobilePreviewDevice"',
-              'id="mobilePreviewLabel"','id="mobilePreviewClose"','id="mobilePreviewFrame"','?mobile-preview=1',
-              'mobile-preview-embedded','id="liuksoryu-mobile-preview-lock"','id="liuksoryu-mobile-preview-script"']
+          mobile = [
+              'LIUKSORYU-MOBILE-PREVIEW-LOCKED', 'id="mobilePreviewToggle"',
+              'id="mobilePreviewOverlay"', 'id="mobilePreviewDevice"',
+              'id="mobilePreviewLabel"', 'id="mobilePreviewClose"',
+              'id="mobilePreviewFrame"', '?mobile-preview=1',
+              'mobile-preview-embedded', 'id="liuksoryu-mobile-preview-lock"',
+              'id="liuksoryu-mobile-preview-script"'
+          ]
           for needle in mobile:
-              a,b=count(base,needle),count(head,needle)
-              if a==0:
-                  if b not in (0,1): raise SystemExit(f'Invalid new Mobile Preview marker count for {needle}: {b}')
-              elif b!=a:
+              a, b = count(base, needle), count(head, needle)
+              if a == 0:
+                  if b not in (0, 1):
+                      raise SystemExit(f'Invalid new Mobile Preview marker count for {needle}: {b}')
+              elif b != a:
                   raise SystemExit(f'Protected Mobile Preview marker changed: {needle} base={a} PR={b}')
 
-          # Final social SVG contract. These exact geometry/fill contracts prevent regression on desktop and mobile.
-          required=['id="liuksoryu-final-social-render-lock"','M20.317 4.3698','M18.244 2.25h3.308','aria-label="X"><svg','fill="currentColor"']
+          # Final social SVG rendering contract.
+          required = [
+              'id="liuksoryu-final-social-render-lock"',
+              'M20.317 4.3698',
+              'M18.244 2.25h3.308',
+              'aria-label="X"><svg',
+              'fill="currentColor"'
+          ]
           for needle in required:
-              if count(head,needle)==0: raise SystemExit(f'Missing final social rendering contract: {needle}')
-          if count(head,'M20.317 4.3698') < 2:
+              if count(head, needle) == 0:
+                  raise SystemExit(f'Missing final social rendering contract: {needle}')
+          if count(head, 'M20.317 4.3698') < 2:
               raise SystemExit('Canonical Discord path must exist in both header and community Discord icons.')
-          if count(head,'M20.3 4.3A19.8'):
+          if count(head, 'M20.3 4.3A19.8'):
               raise SystemExit('Malformed legacy Discord path detected.')
-          if count(head,'aria-label="X"><svg') != 1:
+          if count(head, 'aria-label="X"><svg') != 1:
               raise SystemExit('Header X SVG contract must exist exactly once.')
-          if count(head,'<div class="community-icon">𝕏</div>') != 1:
+          if count(head, '<div class="community-icon">𝕏</div>') != 1:
               raise SystemExit('Community X text icon must remain untouched.')
-          if count(head,'id="liuksoryu-final-social-render-lock"') != 1:
+          if count(head, 'id="liuksoryu-final-social-render-lock"') != 1:
               raise SystemExit('Final social rendering lock must exist exactly once.')
 
           print('Homepage protection contract passed.')
