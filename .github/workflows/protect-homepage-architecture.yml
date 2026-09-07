@@ -123,3 +123,5 @@ jobs:
 
           print('Homepage protection contract passed.')
           PY
+
+      # Permanent read-only X protection: no self-modifying repair step.
