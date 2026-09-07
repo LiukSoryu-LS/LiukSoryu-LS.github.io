@@ -40,7 +40,7 @@ jobs:
               "social render lock": 'id="liuksoryu-final-social-render-lock"' in html,
               "Discord label": 'aria-label="Discord"' in html,
               "X label": 'aria-label="X"' in html,
-              "two protected Discord SVG paths": html.count("M20.317 4.3698") == 2,
+              "two protected Discord SVG paths": html.count("M524.531,69.836") == 2,
               "canonical X SVG path": "M18.244 2.25h3.308" in html,
               "exactly one header X SVG": html.count('aria-label="X"><svg') == 1,
               "exactly one community X text icon": html.count('<div class="community-icon">𝕏</div>') == 1,
