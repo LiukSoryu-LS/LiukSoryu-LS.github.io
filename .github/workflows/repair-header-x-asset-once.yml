@@ -1,0 +1,94 @@
+name: Temporary header X asset repair
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout trusted base
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Repair PR branch using trusted script
+        env:
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$PR_BRANCH"
+          git checkout -B "$PR_BRANCH" "origin/$PR_BRANCH"
+          test -f x-icon-liuksoryu.png
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          pattern = re.compile(r'<a class="social" href="https://x\.com/LiukSoryu" target="_blank" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="[^"]+" fill="currentColor"/></svg></a>')
+          replacement = '<a class="social" href="https://x.com/LiukSoryu" target="_blank" rel="noopener" aria-label="X"><img class="liuksoryu-header-x-asset" src="x-icon-liuksoryu.png" alt="X" draggable="false"></a>'
+          s2, n = pattern.subn(replacement, s, count=1)
+          if n != 1:
+              raise SystemExit(f'Expected exactly one header X SVG to replace, found {n}')
+          if s2.count('aria-label="X"><img class="liuksoryu-header-x-asset"') != 1:
+              raise SystemExit('Header X asset contract failed')
+          if s2.count('<div class="community-icon">𝕏</div>') != 1:
+              raise SystemExit('Community X contract changed unexpectedly')
+          p.write_text(s2, encoding='utf-8')
+          PY
+          git add index.html
+          git diff --cached --exit-code -- x-icon-liuksoryu.png || true
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Use supplied branded X asset for header' || true
+          git push origin "$PR_BRANCH"
+
+      - name: Validate exact contract
+        env:
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout "$PR_BRANCH"
+          python - <<'PY'
+          from pathlib import Path
+          s = Path('index.html').read_text(encoding='utf-8')
+          checks = {
+              'header X asset': 'aria-label="X"><img class="liuksoryu-header-x-asset" src="x-icon-liuksoryu.png"' in s,
+              'community X unchanged': s.count('<div class="community-icon">𝕏</div>') == 1,
+              'mobile preview lock': 'id="liuksoryu-mobile-preview-lock"' in s,
+              'mobile preview marker': 'LIUKSORYU-MOBILE-PREVIEW-LOCKED' in s,
+              'mobile preview script': 'id="liuksoryu-mobile-preview-script"' in s,
+              'social render lock': 'id="liuksoryu-final-social-render-lock"' in s,
+              'no nth-child hiding': '.social:nth-child(n+4)' not in s,
+              'Discord canonical': s.count('M20.317 4.3698') == 2,
+              'video loader': "fetch('videos.json?v='+Date.now()" in s,
+          }
+          for k,v in checks.items(): print(('PASS' if v else 'FAIL') + ': ' + k)
+          if not all(checks.values()): raise SystemExit('Temporary X asset repair validation failed')
+          PY
+
+      - name: Remove temporary repair workflow from main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B main origin/main
+          rm -f .github/workflows/repair-header-x-asset-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -u .github/workflows/repair-header-x-asset-once.yml
+          git commit -m 'Remove temporary X asset repair workflow' || true
+          git push origin main
