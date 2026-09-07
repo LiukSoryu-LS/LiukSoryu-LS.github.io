@@ -102,7 +102,9 @@ jobs:
               'M524.531,69.836',
               'M18.244 2.25h3.308',
               'aria-label="X"><svg',
-              'fill="currentColor"'
+              'fill="currentColor"',
+              '.socials .social[aria-label="X"] svg{width:21px!important;height:21px!important}',
+              '.socials .social[aria-label="X"] svg path{fill:currentColor!important;stroke:none!important}'
           ]
           for needle in required:
               if count(head, needle) == 0:
