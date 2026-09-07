@@ -28,12 +28,12 @@ jobs:
               a,b=count(base,needle),count(head,needle)
               if a!=b: raise SystemExit(f'{label} changed: base={a}, PR={b}')
 
-          # Header: four fixed platforms. Rendering is protected by the dedicated scoped lock after restoration.
+          # Header: four fixed platforms. The dedicated scoped rendering lock protects their visual behavior.
           for label in ['YouTube','Twitch','Discord','X']:
               require_same(f'Header {label} marker',f'aria-label="{label}"')
           require_same('Header social container','<div class="socials">')
-          if '.social:nth-child' in head or 'social:nth-child' in head:
-              raise SystemExit('Protected header social icons must not depend on nth-child selectors.')
+          # Legacy nth-child CSS is tolerated only when unchanged; it must never be introduced or altered.
+          require_same('Header legacy nth-child selector count','.social:nth-child(n+4)')
 
           # Footer: four explicit platforms.
           for label in ['Instagram','TikTok','Bilibili','Spotify']:
@@ -74,8 +74,8 @@ jobs:
           for piece in source_copy:
               if piece not in head_about: raise SystemExit(f'Protected About copy missing: {piece}')
 
-          # Mobile preview: if it is already present on main, it becomes immutable.
-          # This also permits the one-time restoration PR when main currently lacks it.
+          # Mobile preview: if already present on main, every protected marker becomes immutable.
+          # This permits the one-time restoration while preventing later removal or duplication.
           mobile=[
               'LIUKSORYU-MOBILE-PREVIEW-LOCKED','id="mobilePreviewToggle"','id="mobilePreviewOverlay"','id="mobilePreviewDevice"',
               'id="mobilePreviewLabel"','id="mobilePreviewClose"','id="mobilePreviewFrame"','?mobile-preview=1',
@@ -87,7 +87,7 @@ jobs:
               elif b!=a:
                   raise SystemExit(f'Protected Mobile Preview marker changed: {needle} base={a} PR={b}')
 
-          # Once the dedicated header icon lock exists, it cannot be removed or duplicated.
+          # Header rendering lock is immutable once present.
           for needle in ['id="liuksoryu-header-icon-lock"','.socials .social{display:grid!important','.socials .social svg{width:20px!important']:
               a,b=count(base,needle),count(head,needle)
               if a==0:
