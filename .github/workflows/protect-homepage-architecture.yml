@@ -22,6 +22,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
+          import re
           import subprocess
 
           base = subprocess.check_output(['git', 'show', 'origin/main:index.html'], text=True)
@@ -35,20 +36,26 @@ jobs:
               if a != b:
                   raise SystemExit(f'{label} changed: base={a}, PR={b}')
 
-          # Header social architecture.
-          for label in ['YouTube', 'Twitch', 'Discord']:
-              require_same(f'Header {label} marker', f'aria-label="{label}"')
-          require_same('Header X marker', 'aria-label="X"')
-          require_same('Header social container', '<div class="socials">')
+          def header_socials(text):
+              m = re.search(r'<div class="socials">(.*?)</div></div></header>', text, re.S)
+              if not m:
+                  raise SystemExit('Header social container is missing or malformed.')
+              return m.group(1)
+
+          base_header = header_socials(base)
+          head_header = header_socials(head)
+          for label in ['YouTube', 'Twitch', 'Discord', 'X']:
+              if head_header.count(f'aria-label="{label}"') != base_header.count(f'aria-label="{label}"'):
+                  raise SystemExit(f'Header {label} marker changed.')
+          if head_header.count('aria-label="X"><svg') != base_header.count('aria-label="X"><svg'):
+              raise SystemExit('Header X SVG marker changed.')
           if '.social:nth-child(n+4)' in head:
               raise SystemExit('Obsolete generic social hiding rule detected.')
 
-          # Footer social architecture.
           for label in ['Instagram', 'TikTok', 'Bilibili', 'Spotify']:
               require_same(f'Footer {label} marker', f'aria-label="{label}"')
           require_same('Footer social container', '<div class="footer-socials">')
 
-          # Games and Latest Videos architecture. Protect the real markup strings without assuming a fixed card count.
           for needle, label in [
               ('class="games"', 'Games container'),
               ('class="game-name"', 'Game name elements'),
@@ -63,11 +70,9 @@ jobs:
                   raise SystemExit(f'Baseline missing {label}')
               require_same(label, needle)
 
-          # Distinct assets remain protected.
           for asset in ['profilediscordcommunity.png', 'Profile.jpg']:
               require_same(f'Protected asset {asset}', asset)
 
-          # Exact About section remains protected.
           about_marker = '<section class="section about-section" id="about">'
           def about_block(text):
               start = text.find(about_marker)
@@ -80,7 +85,6 @@ jobs:
           if about_block(base) != about_block(head):
               raise SystemExit('Protected About section changed.')
 
-          # Mobile Preview contract is immutable once present on main.
           mobile = [
               'LIUKSORYU-MOBILE-PREVIEW-LOCKED', 'id="mobilePreviewToggle"',
               'id="mobilePreviewOverlay"', 'id="mobilePreviewDevice"',
@@ -97,7 +101,6 @@ jobs:
               elif b != a:
                   raise SystemExit(f'Protected Mobile Preview marker changed: {needle} base={a} PR={b}')
 
-          # Final social SVG rendering contract.
           required = [
               'id="liuksoryu-final-social-render-lock"',
               'M524.531,69.836',
@@ -112,8 +115,6 @@ jobs:
               raise SystemExit('Stable Discord path must exist in both header and community Discord icons.')
           if count(head, 'M20.3 4.3A19.8'):
               raise SystemExit('Malformed legacy Discord path detected.')
-          if count(head, 'aria-label="X"><svg') != 1:
-              raise SystemExit('Header X SVG contract must exist exactly once.')
           if count(head, '<div class="community-icon">𝕏</div>') != 1:
               raise SystemExit('Community X text icon must remain untouched.')
           if count(head, 'id="liuksoryu-final-social-render-lock"') != 1:
