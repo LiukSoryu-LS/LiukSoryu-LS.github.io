@@ -33,43 +33,64 @@ jobs:
               if a != b:
                   raise SystemExit(f'{label} changed: base={a}, PR={b}')
 
-          # Header social architecture: four fixed platforms and no generic nth-child dependency.
+          # Header social architecture: four fixed platforms, isolated from footer styles.
           for label in ['YouTube', 'Twitch', 'Discord', 'X']:
               require_same(f'Header {label} marker', f'aria-label="{label}"')
           require_same('Header social container', '<div class="socials">')
-          if ' .social:nth-child' in head or '.social:nth-child' in head:
+          if '.social:nth-child' in head or 'social:nth-child' in head:
               raise SystemExit('Protected header social icons must not depend on nth-child selectors.')
+          for needle, label in [
+              ('.social{width:44px', 'Header social base sizing'),
+              ('.social svg{width:20px;height:20px', 'Header social SVG sizing'),
+              ('.social{width:38px;height:38px}', 'Header mobile social sizing'),
+          ]:
+              if count(base, needle) == 0:
+                  raise SystemExit(f'Baseline is missing required header marker: {label}')
+              require_same(label, needle)
 
-          # Footer social architecture: the four footer platforms remain explicit.
+          # Footer social architecture: exactly four fixed platforms, separate selectors.
           for label in ['Instagram', 'TikTok', 'Bilibili', 'Spotify']:
               require_same(f'Footer {label} marker', f'aria-label="{label}"')
           require_same('Footer social container', '<div class="footer-socials">')
+          for needle, label in [
+              ('.footer-social{width:44px;height:44px', 'Footer social base sizing'),
+              ('.footer-social svg{width:20px;height:20px', 'Footer social SVG sizing'),
+              ('.footer-social{width:42px;height:42px', 'Footer mobile social sizing'),
+          ]:
+              if count(base, needle) == 0:
+                  raise SystemExit(f'Baseline is missing required footer marker: {label}')
+              require_same(label, needle)
 
-          # Games section: preserve the container and card/image structure.
+          # Games section: preserve container/card/image structure and card count.
           for needle, label in [
               ('class="games"', 'Games container'),
+              ('class="game-card"', 'Game card elements'),
               ('class="game-name"', 'Game name elements'),
               ('class="image-slot has-image"', 'Game image slots'),
           ]:
+              if count(base, needle) == 0:
+                  raise SystemExit(f'Baseline is missing required Games marker: {label}')
               require_same(label, needle)
 
-          # Latest Videos: preserve the container, video card structure, and data-driven thumbnail contract.
+          # Latest Videos: preserve structure, five slots, loader and thumbnail contract.
           for needle, label in [
               ('class="videos"', 'Latest Videos container'),
               ('class="video"', 'Video card structure'),
-              ("fetch('videos.json')", 'videos.json loader'),
+              ('data-video-card', 'Video data-card markers'),
+              ("fetch('videos.json", 'videos.json loader'),
               ('thumbnail', 'Thumbnail contract'),
           ]:
               if count(base, needle) == 0:
-                  raise SystemExit(f'Baseline is missing required marker: {label}')
+                  raise SystemExit(f'Baseline is missing required Latest Videos marker: {label}')
               require_same(label, needle)
+          if count(base, 'data-video-card') != 5:
+              raise SystemExit('Baseline Latest Videos card count is not 5.')
 
-          # The homepage must continue to contain both distinct profile/community assets.
+          # Distinct profile/community assets.
           for asset in ['profilediscordcommunity.png', 'Profile.jpg']:
               require_same(f'Protected asset {asset}', asset)
 
-          # The About copy is protected as exact content. Changes require an intentional
-          # update to the source-of-truth file and this protected contract.
+          # About copy must remain the approved text.
           about_marker = '<section class="section about-section" id="about">'
           def about_block(text):
               start = text.find(about_marker)
@@ -79,8 +100,6 @@ jobs:
               if end < 0:
                   raise SystemExit('About section is malformed.')
               return text[start:end]
-
-          base_about = about_block(base)
           head_about = about_block(head)
           source_copy = [
               'The games that shaped my childhood? <strong>Final Fantasy IX, The Legend of Dragoon, and Kingdom Hearts.</strong> 💜',
@@ -98,8 +117,38 @@ jobs:
           for piece in source_copy:
               if piece not in head_about:
                   raise SystemExit(f'Protected About copy missing: {piece}')
-          if base_about != head_about and all(piece in head_about for piece in source_copy):
-              pass
+
+          # Mobile preview must remain a complete, self-contained system.
+          mobile_markers = [
+              ('id="mobilePreviewToggle"', 'Mobile preview toggle'),
+              ('id="mobilePreviewOverlay"', 'Mobile preview overlay'),
+              ('id="mobilePreviewDevice"', 'Mobile preview device'),
+              ('id="mobilePreviewLabel"', 'Mobile preview label'),
+              ('id="mobilePreviewClose"', 'Mobile preview close button'),
+              ('id="mobilePreviewFrame"', 'Mobile preview iframe'),
+              ("frame.src='index.html?mobile-preview=1'", 'Mobile preview launch target'),
+              ("document.body.classList.add('mobile-preview-open')", 'Mobile preview open behavior'),
+              ("document.body.classList.remove('mobile-preview-open')", 'Mobile preview close behavior'),
+              ('html.mobile-preview-embedded', 'Embedded preview protection'),
+              ('body.mobile-preview-embedded', 'Embedded preview body protection'),
+              ('?mobile-preview', 'Mobile preview query contract'),
+          ]
+          for needle, label in mobile_markers:
+              if count(base, needle) == 0:
+                  raise SystemExit(f'Baseline is missing required Mobile Preview marker: {label}')
+              require_same(label, needle)
+
+          # Mobile preview visibility/layout rules must remain present and unchanged.
+          for needle, label in [
+              ('#mobilePreviewToggle{position:fixed', 'Preview toggle positioning'),
+              ('#mobilePreviewOverlay{position:fixed', 'Preview overlay positioning'),
+              ('#mobilePreviewDevice{width:min(390px', 'Preview device sizing'),
+              ('#mobilePreviewFrame{position:absolute', 'Preview iframe sizing'),
+              ('@media(max-width:600px){#mobilePreviewToggle,#mobilePreviewOverlay{display:none!important}', 'Preview mobile-page suppression'),
+          ]:
+              if count(base, needle) == 0:
+                  raise SystemExit(f'Baseline is missing required Mobile Preview CSS marker: {label}')
+              require_same(label, needle)
 
           print('Homepage protection contract passed.')
           PY
